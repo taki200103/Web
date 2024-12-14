@@ -159,6 +159,50 @@ const TaskController = {
                 error: error.message
             });
         }
+    },
+
+    deleteTask: async (req, res) => {
+        try {
+            const { taskIds } = req.body; // Nhận mảng các task_uid cần xóa
+            const user_id = req.user.user_id;
+
+            // Kiểm tra quyền sở hữu các task trước khi xóa
+            const checkOwnershipQuery = `
+                SELECT task_uid 
+                FROM "User_Task" 
+                WHERE task_uid = ANY($1) 
+                AND user_id = $2
+            `;
+            const ownershipResult = await pool.query(checkOwnershipQuery, [taskIds, user_id]);
+
+            if (ownershipResult.rows.length !== taskIds.length) {
+                return res.status(403).json({
+                    message: "Bạn không có quyền xóa một số công việc đã chọn!"
+                });
+            }
+
+            // Thực hiện xóa các task
+            const deleteQuery = `
+                DELETE FROM "User_Task"
+                WHERE task_uid = ANY($1)
+                AND user_id = $2
+                RETURNING task_uid
+            `;
+
+            const result = await pool.query(deleteQuery, [taskIds, user_id]);
+
+            res.status(200).json({
+                message: "Xóa công việc thành công!",
+                deletedTasks: result.rows.map(row => row.task_uid)
+            });
+
+        } catch (error) {
+            console.error('Delete tasks error:', error);
+            res.status(500).json({
+                message: "Lỗi khi xóa công việc!",
+                error: error.message
+            });
+        }
     }
 };
 

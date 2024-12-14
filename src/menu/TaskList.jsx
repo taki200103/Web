@@ -69,9 +69,31 @@ const TaskTab = ({ taskTypeId }) => {
     );
   };
 
-  const handleDelete = () => {
-    setTasks((prevTasks) => prevTasks.filter((task) => !selectedTasks.includes(task.id)));
-    setSelectedTasks([]);
+  const handleDelete = async () => {
+    try {
+        const token = localStorage.getItem('authToken');
+        
+        // Gọi API xóa
+        await axios.delete('http://localhost:3000/api/tasks/delete', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            data: {
+                taskIds: selectedTasks
+            }
+        });
+
+        // Cập nhật state sau khi xóa thành công
+        setTasks((prevTasks) => prevTasks.filter((task) => !selectedTasks.includes(task.id)));
+        setSelectedTasks([]);
+
+        // Thông báo thành công (tùy chọn)
+        alert('Xóa công việc thành công!');
+
+    } catch (error) {
+        console.error('Error deleting tasks:', error);
+        alert(error.response?.data?.message || 'Có lỗi xảy ra khi xóa công việc!');
+    }
   };
 
   const handleAdd = () => {
