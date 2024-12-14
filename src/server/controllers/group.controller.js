@@ -71,6 +71,42 @@ const GroupController = {
                 error: error.message
             });
         }
+    },
+
+    getUserGroups: async (req, res) => {
+        try {
+            const user_id = req.user.user_id;
+
+            const query = `
+                SELECT 
+                    g.group_id,
+                    g.group_name,
+                    g.description AS group_description,
+                    gm.role,
+                    u.user_name
+                FROM "Users" u
+                JOIN "Group_Member" gm ON u.user_id = gm.user_id
+                JOIN "Group" g ON gm.group_id = g.group_id
+                WHERE u.user_id = $1
+                ORDER BY g.creation_date DESC, g.time_created DESC
+            `;
+
+            const result = await pool.query(query, [user_id]);
+
+            res.status(200).json({
+                success: true,
+                message: "Lấy danh sách nhóm thành công!",
+                groups: result.rows
+            });
+
+        } catch (error) {
+            console.error('Get user groups error:', error);
+            res.status(500).json({
+                success: false,
+                message: "Lỗi khi lấy danh sách nhóm!",
+                error: error.message
+            });
+        }
     }
 };
 

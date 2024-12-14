@@ -1,21 +1,54 @@
-import React, { useState } from 'react';
-import { Box, IconButton, Menu, MenuItem, Dialog } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Box, IconButton, Menu, MenuItem, Dialog, Typography } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import GroupMenu from '../group/GroupMenu';
 import UserProfile from '../user_info/user_menu';
 import { useNavigate } from 'react-router-dom';
 import CreateGroupDialog from './CreateGroupDialog';
+import axios from 'axios';
 
 //
 
 const Component1 = ({ user }) => {
   const navigate = useNavigate();
-  const [groups, setGroups] = useState([1]);
+  const [groups, setGroups] = useState([]);
   const [contextMenu, setContextMenu] = useState(null);
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [openGroupMenu, setOpenGroupMenu] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [openCreateGroup, setOpenCreateGroup] = useState(false);
+
+  useEffect(() => {
+    const fetchGroups = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        console.log('Token:', token);
+
+        const response = await axios.get(
+          'http://localhost:3000/api/groups/user-groups',
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }
+        );
+        console.log('API Response:', response.data);
+
+        if (response.data.success) {
+          setGroups(response.data.groups);
+          console.log('Groups after setting:', response.data.groups);
+        }
+      } catch (error) {
+        console.error('Error details:', error.response || error);
+      }
+    };
+
+    fetchGroups();
+  }, []);
+
+  useEffect(() => {
+    console.log('Current groups state:', groups);
+  }, [groups]);
 
   const handleAddGroup = () => {
     setOpenCreateGroup(true);
@@ -114,43 +147,62 @@ const Component1 = ({ user }) => {
       <Box
         sx={{
           width: '100%',
-          bgcolor: '#e0e0e0', // Màu nền xám đậm hơn
+          bgcolor: '#e0e0e0',
           p: 1,
           display: 'flex',
           flexDirection: 'column',
           gap: 2,
-          overflowY: 'auto', // Cho phép cuộn dọc khi nội dung dài
-          maxHeight: 'calc(100vh - 150px)', // Chiều cao tối đa
-          '&::-webkit-scrollbar': {
-            width: '8px', // Độ rộng của thanh cuộn
-          },
+          overflowY: 'auto',
+          maxHeight: 'calc(100vh - 150px)',
+          '&::-webkit-scrollbar': { width: '8px' },
           '&::-webkit-scrollbar-thumb': {
-            backgroundColor: '#888', // Màu của thanh cuộn
-            borderRadius: '4px', // Bo góc thanh cuộn
-          },
-          '&::-webkit-scrollbar-thumb:hover': {
-            backgroundColor: '#555', // Màu khi hover thanh cuộn
-          },
+            backgroundColor: '#888',
+            borderRadius: '4px'
+          }
         }}
       >
-        {groups.map((item, index) => (
-          <Box
-            key={item}
-            onClick={handleGroupClick}
-            onContextMenu={(e) => handleContextMenu(e, index)}
-            sx={{
-              width: '100%',
-              height: 65,
-              bgcolor: '#ddd', // Màu nền của từng ô group
-              borderRadius: 1,
-              flexShrink: 0, // Không cho phép co lại
-              cursor: 'pointer', // Con trỏ chuột kiểu pointer
-              '&:hover': {
-                bgcolor: '#ccc',
-              },
+        {groups.length === 0 ? (
+          <Typography 
+            variant="body2" 
+            sx={{ 
+              textAlign: 'center', 
+              color: 'text.secondary',
+              py: 2 
             }}
-          ></Box>
-        ))}
+          >
+            Chưa có nhóm nào
+          </Typography>
+        ) : (
+          groups.map((group) => (
+            <Box
+              key={group.group_id}
+              onClick={() => handleGroupClick(group)}
+              onContextMenu={(e) => handleContextMenu(e, group)}
+              sx={{
+                width: '100%',
+                minHeight: 65,
+                bgcolor: '#fff',
+                borderRadius: 1,
+                p: 2,
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                '&:hover': {
+                  bgcolor: '#f5f5f5',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                }
+              }}
+            >
+              <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                {group.group_name}
+              </Typography>
+              <Typography variant="caption" color="textSecondary">
+                {group.role === 'leader' ? 'Trưởng nhóm' : 'Thành viên'}
+              </Typography>
+            </Box>
+          ))
+        )}
       </Box>
 
       {/* Dialog hiển thị GroupMenu */}
