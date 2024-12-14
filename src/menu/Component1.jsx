@@ -4,8 +4,9 @@ import AddIcon from '@mui/icons-material/Add';
 import GroupMenu from '../group/GroupMenu';
 import UserProfile from '../user_info/user_menu';
 import { useNavigate } from 'react-router-dom';
+import CreateGroupDialog from './CreateGroupDialog';
 
-// các ô group
+//
 
 const Component1 = ({ user }) => {
   const navigate = useNavigate();
@@ -14,9 +15,10 @@ const Component1 = ({ user }) => {
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [openGroupMenu, setOpenGroupMenu] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [openCreateGroup, setOpenCreateGroup] = useState(false);
 
   const handleAddGroup = () => {
-    setGroups((prev) => [...prev, prev.length + 1]);
+    setOpenCreateGroup(true);
   };
 
   const handleContextMenu = (event, index) => {
@@ -59,6 +61,10 @@ const Component1 = ({ user }) => {
 
   const handleOpenMainMenu = () => {
     setIsMenuOpen(true);
+  };
+
+  const handleGroupCreated = (newGroup) => {
+    setGroups(prev => [...prev, newGroup]);
   };
 
   return (
@@ -184,6 +190,12 @@ const Component1 = ({ user }) => {
         onLogout={handleLogout}
         openMainMenu={handleOpenMainMenu}
         user={user}
+      />
+
+      <CreateGroupDialog
+        open={openCreateGroup}
+        onClose={() => setOpenCreateGroup(false)}
+        onSuccess={handleGroupCreated}
       />
     </Box>
   );
