@@ -89,7 +89,7 @@ const TaskTab = ({ taskTypeId }) => {
             id: tasks.length + 1,
             task: newTaskData.taskName,
             status: "PENDING",
-            createdBy: localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')).user_name : 'admin',
+            createdBy: response.data.task.createdBy,
             createdAt: new Date().toISOString().slice(0, 19).replace("T", " "),
             timeStart: `${newTaskData.dateBegin} ${newTaskData.timeBegin}`,
             timeEnd: `${newTaskData.dateEnd} ${newTaskData.timeEnd}`,
