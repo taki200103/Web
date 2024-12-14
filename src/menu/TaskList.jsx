@@ -15,6 +15,11 @@ import {
   DialogContent,
   DialogActions,
   Typography,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import SubmitTask from './SubmitTask';
 import axios from 'axios';
@@ -30,6 +35,8 @@ const TaskTab = ({ taskTypeId }) => {
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [openSubmitTask, setOpenSubmitTask] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editFormData, setEditFormData] = useState(null);
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -159,6 +166,51 @@ const TaskTab = ({ taskTypeId }) => {
     }
   };
 
+  const handleEdit = () => {
+    setEditFormData({
+        taskName: selectedTask.task,
+        description: selectedTask.description,
+        dateBegin: selectedTask.timeStart.split(' ')[0],
+        dateEnd: selectedTask.timeEnd.split(' ')[0],
+        timeBegin: selectedTask.timeStart.split(' ')[1],
+        timeEnd: selectedTask.timeEnd.split(' ')[1],
+        status: selectedTask.status
+    });
+    setIsEditing(true);
+  };
+
+  const handleSubmitEdit = async () => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await axios.put(
+            `http://localhost:3000/api/tasks/update/${selectedTask.id}`,
+            editFormData,
+            {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            }
+        );
+
+        // Cập nhật state tasks
+        setTasks(prevTasks => 
+            prevTasks.map(task => 
+                task.id === selectedTask.id 
+                    ? { ...task, ...response.data.task }
+                    : task
+            )
+        );
+
+        setIsEditing(false);
+        setOpenDialog(false);
+        alert('Cập nhật công việc thành công!');
+
+    } catch (error) {
+        console.error('Error updating task:', error);
+        alert(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật công việc!');
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '20px' }}>
@@ -265,7 +317,7 @@ const TaskTab = ({ taskTypeId }) => {
       <Dialog open={openDialog} onClose={handleCloseDialog}>
         <DialogTitle>Task Details</DialogTitle>
         <DialogContent>
-          {selectedTask ? (
+          {selectedTask && !isEditing ? (
             <>
               <Typography variant="h6">{selectedTask.task}</Typography>
               <Typography>Status: {selectedTask.status}</Typography>
@@ -275,14 +327,118 @@ const TaskTab = ({ taskTypeId }) => {
               <Typography>Time End: {selectedTask.timeEnd}</Typography>
               <Typography>Description: {selectedTask.description}</Typography>
             </>
-          ) : (
-            <Typography>No Task Selected</Typography>
+          ) : editFormData && (
+            <form>
+              <TextField
+                fullWidth
+                margin="normal"
+                label="Task Name"
+                value={editFormData.taskName}
+                onChange={(e) => setEditFormData({
+                  ...editFormData,
+                  taskName: e.target.value
+                })}
+              />
+              <TextField
+                fullWidth
+                margin="normal"
+                label="Description"
+                multiline
+                rows={4}
+                value={editFormData.description}
+                onChange={(e) => setEditFormData({
+                  ...editFormData,
+                  description: e.target.value
+                })}
+              />
+              <TextField
+                fullWidth
+                margin="normal"
+                type="date"
+                label="Date Begin"
+                value={editFormData.dateBegin}
+                onChange={(e) => setEditFormData({
+                  ...editFormData,
+                  dateBegin: e.target.value
+                })}
+              />
+              <TextField
+                fullWidth
+                margin="normal"
+                type="time"
+                label="Time Begin"
+                value={editFormData.timeBegin}
+                onChange={(e) => setEditFormData({
+                  ...editFormData,
+                  timeBegin: e.target.value
+                })}
+              />
+              <TextField
+                fullWidth
+                margin="normal"
+                type="date"
+                label="Date End"
+                value={editFormData.dateEnd}
+                onChange={(e) => setEditFormData({
+                  ...editFormData,
+                  dateEnd: e.target.value
+                })}
+              />
+              <TextField
+                fullWidth
+                margin="normal"
+                type="time"
+                label="Time End"
+                value={editFormData.timeEnd}
+                onChange={(e) => setEditFormData({
+                  ...editFormData,
+                  timeEnd: e.target.value
+                })}
+              />
+              <FormControl fullWidth margin="normal">
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={editFormData.status}
+                  onChange={(e) => setEditFormData({
+                    ...editFormData,
+                    status: e.target.value
+                  })}
+                >
+                  <MenuItem value="PENDING">PENDING</MenuItem>
+                  <MenuItem value="IN_PROGRESS">IN PROGRESS</MenuItem>
+                  <MenuItem value="COMPLETED">COMPLETED</MenuItem>
+                </Select>
+              </FormControl>
+            </form>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog} variant="contained" color="secondary">
-            Close
-          </Button>
+          {!isEditing ? (
+            <>
+              <Button onClick={handleEdit} variant="contained" color="primary">
+                Edit
+              </Button>
+              <Button onClick={handleCloseDialog} variant="contained" color="secondary">
+                Close
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button onClick={handleSubmitEdit} variant="contained" color="primary">
+                Save
+              </Button>
+              <Button 
+                onClick={() => {
+                  setIsEditing(false);
+                  setEditFormData(null);
+                }} 
+                variant="contained" 
+                color="secondary"
+              >
+                Cancel
+              </Button>
+            </>
+          )}
         </DialogActions>
       </Dialog>
 
