@@ -9,5 +9,8 @@ router.get('/:groupId/details', verifyToken, GroupController.getGroupDetails);
 router.get('/:groupId/members', verifyToken, GroupController.getGroupMembers);
 router.post('/:groupId/members', verifyToken, GroupController.addGroupMember);
 router.delete('/:groupId/members/:memberId', verifyToken, GroupController.deleteGroupMember);
+router.get('/:groupId/tasks', verifyToken, GroupController.getGroupTasks);
+router.post('/:groupId/tasks', verifyToken, GroupController.createGroupTask);
+router.delete('/:groupId/tasks', verifyToken, GroupController.deleteGroupTasks);
 
 module.exports = router; 
