@@ -107,6 +107,63 @@ const GroupController = {
                 error: error.message
             });
         }
+    },
+
+    getGroupDetails: async (req, res) => {
+        try {
+            const { groupId } = req.params;
+
+            const query = `
+                WITH leader_info AS (
+                    SELECT u.user_name
+                    FROM "Group_Member" gm
+                    JOIN "Users" u ON gm.user_id = u.user_id
+                    WHERE gm.group_id = $1 
+                    AND gm.role = 'leader'
+                )
+                SELECT 
+                    g.group_id,
+                    g.group_name,
+                    g.description,
+                    g.creation_date,
+                    g.time_created,
+                    l.user_name as leader_name,
+                    (
+                        SELECT CAST(COUNT(*) AS INTEGER)
+                        FROM "Group_Member" 
+                        WHERE group_id = $1
+                    ) as total_members
+                FROM "Group" g
+                CROSS JOIN leader_info l
+                WHERE g.group_id = $1
+            `;
+
+            const result = await pool.query(query, [groupId]);
+
+            if (result.rows.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Không tìm thấy thông tin nhóm!"
+                });
+            }
+
+            // Log để debug
+            console.log('Group details:', result.rows[0]);
+
+            res.status(200).json({
+                success: true,
+                message: "Lấy thông tin nhóm thành công!",
+                groupInfo: result.rows[0]
+            });
+
+        } catch (error) {
+            console.error('Get group details error:', error);
+            res.status(500).json({
+                success: false,
+                message: "Lỗi khi lấy thông tin nhóm!",
+                error: error.message
+            });
+        }
     }
 };
 

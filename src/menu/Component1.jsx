@@ -17,6 +17,7 @@ const Component1 = ({ user }) => {
   const [openGroupMenu, setOpenGroupMenu] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [openCreateGroup, setOpenCreateGroup] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState(null);
 
   useEffect(() => {
     const fetchGroups = async () => {
@@ -74,7 +75,9 @@ const Component1 = ({ user }) => {
     handleClose();
   };
 
-  const handleGroupClick = () => {
+  const handleGroupClick = (group) => {
+    console.log('Selected group:', group); // Debug log
+    setSelectedGroup(group);
     setOpenGroupMenu(true);
   };
 
@@ -219,7 +222,7 @@ const Component1 = ({ user }) => {
           }
         }}
       >
-        <GroupMenu />
+        <GroupMenu group={selectedGroup} onClose={handleCloseGroupMenu} />
       </Dialog>
 
       {/* Menu ngữ cảnh với vị trí dựa trên tọa độ chuột */}
