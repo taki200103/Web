@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Table,
   TableHead,
@@ -21,6 +21,8 @@ import axios from 'axios';
 
 const TaskTab = ({ taskTypeId }) => {
   const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const [selectedTasks, setSelectedTasks] = useState([]);
   const [page, setPage] = useState(0);
@@ -28,6 +30,36 @@ const TaskTab = ({ taskTypeId }) => {
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [openSubmitTask, setOpenSubmitTask] = useState(false);
+
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem('authToken');
+        
+        const response = await axios.get(
+          `http://localhost:3000/api/tasks/by-type/${taskTypeId}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }
+        );
+
+        console.log('Tasks received:', response.data);
+        setTasks(response.data.tasks);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+        setError(error.response?.data?.message || 'Có lỗi xảy ra khi tải dữ liệu');
+        setLoading(false);
+      }
+    };
+
+    if (taskTypeId) {
+      fetchTasks();
+    }
+  }, [taskTypeId]);
 
   const handleToggleSelect = (id) => {
     setSelectedTasks((prevSelected) =>
@@ -105,6 +137,22 @@ const TaskTab = ({ taskTypeId }) => {
     }
   };
 
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '20px' }}>
+        Đang tải dữ liệu...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ textAlign: 'center', padding: '20px', color: 'red' }}>
+        {error}
+      </div>
+    );
+  }
+
   const displayedTasks = tasks.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   return (
@@ -144,32 +192,41 @@ const TaskTab = ({ taskTypeId }) => {
           </TableRow>
         </TableHead>
         <TableBody>
-          {displayedTasks.map((task) => (
-            <TableRow key={task.id}>
-              <TableCell>
-                <Checkbox
-                  checked={selectedTasks.includes(task.id)}
-                  onChange={() => handleToggleSelect(task.id)}
-                />
+          {displayedTasks.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={7} align="center">
+                Chưa có công việc nào
               </TableCell>
-              <TableCell>
-                <a
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleOpenDialog(task);
-                  }}
-                >
-                  {task.task}
-                </a>
-              </TableCell>
-              <TableCell>{task.status}</TableCell>
-              <TableCell>{task.createdBy}</TableCell>
-              <TableCell>{task.createdAt}</TableCell>
-              <TableCell>{task.timeStart}</TableCell>
-              <TableCell>{task.timeEnd}</TableCell>
             </TableRow>
-          ))}
+          ) : (
+            displayedTasks.map((task) => (
+              <TableRow key={task.id}>
+                <TableCell>
+                  <Checkbox
+                    checked={selectedTasks.includes(task.id)}
+                    onChange={() => handleToggleSelect(task.id)}
+                  />
+                </TableCell>
+                <TableCell>
+                  <a
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleOpenDialog(task);
+                    }}
+                    style={{ textDecoration: 'none', color: '#1976d2' }}
+                  >
+                    {task.task}
+                  </a>
+                </TableCell>
+                <TableCell>{task.status}</TableCell>
+                <TableCell>{task.createdBy}</TableCell>
+                <TableCell>{task.createdAt}</TableCell>
+                <TableCell>{task.timeStart}</TableCell>
+                <TableCell>{task.timeEnd}</TableCell>
+              </TableRow>
+            ))
+          )}
         </TableBody>
       </Table>
 
