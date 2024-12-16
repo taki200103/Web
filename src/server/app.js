@@ -19,10 +19,12 @@ app.use(express.urlencoded({ extended: true }));
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
 const taskRoutes = require('./routes/task.routes');
+const groupRoutes = require('./routes/group.routes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/groups', groupRoutes);
 
 // Test database connection
 pool.query('SELECT NOW()', (err, res) => {

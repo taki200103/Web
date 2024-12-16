@@ -1,16 +1,31 @@
 import React from "react";
-import { Box, Typography, Table, TableBody, TableRow, TableCell, Paper } from "@mui/material";
+import { Box, Typography, Table, TableBody, TableRow, TableCell, Paper, CircularProgress } from "@mui/material";
 
-const InfoTab = () => {
-  const projectData = {
-    name: "Project 1",
-    creator: "BKCS SOICT",
-    organization: "SoICT",
-    createdAt: "2024-09-30 14:09:29",
-    numberOfMembers: 25,
-    numberOfTasks: 41,
-    description:
-      "Củng cố và mở rộng kiến thức chuyên môn, liên kết kiến thức của một nhóm học phần. Khuyến khích sinh viên phát triển kỹ năng chuyên nghiệp, năng lực làm việc theo nhóm.",
+const InfoTab = ({ groupInfo, loading }) => {
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (!groupInfo) {
+    return (
+      <Box sx={{ textAlign: 'center', p: 3 }}>
+        <Typography color="text.secondary">
+          Không tìm thấy thông tin nhóm
+        </Typography>
+      </Box>
+    );
+  }
+
+  const formatDate = (date) => {
+    return new Date(date).toLocaleDateString('vi-VN');
+  };
+
+  const formatTime = (time) => {
+    return time ? time.substring(0, 5) : '';
   };
 
   return (
@@ -22,26 +37,30 @@ const InfoTab = () => {
         <Table size="small">
           <TableBody>
             <TableRow hover>
-              <TableCell sx={{ fontWeight: 'bold', width: '20%' }}>Name</TableCell>
-              <TableCell sx={{ width: '30%' }}>{projectData.name}</TableCell>
-              <TableCell sx={{ fontWeight: 'bold', width: '20%' }}>Creator</TableCell>
-              <TableCell sx={{ width: '30%' }}>{projectData.creator}</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', width: '30%' }}>Group ID</TableCell>
+              <TableCell>{groupInfo.group_id}</TableCell>
             </TableRow>
             <TableRow hover>
-              <TableCell sx={{ fontWeight: 'bold' }}>Organization</TableCell>
-              <TableCell>{projectData.organization}</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', width: '30%' }}>Name</TableCell>
+              <TableCell>{groupInfo.group_name}</TableCell>
+            </TableRow>
+            <TableRow hover>
+              <TableCell sx={{ fontWeight: 'bold' }}>Created by</TableCell>
+              <TableCell>{groupInfo.leader_name}</TableCell>
+            </TableRow>
+            <TableRow hover>
               <TableCell sx={{ fontWeight: 'bold' }}>Created at</TableCell>
-              <TableCell>{projectData.createdAt}</TableCell>
+              <TableCell>
+                {formatDate(groupInfo.creation_date)} {formatTime(groupInfo.time_created)}
+              </TableCell>
             </TableRow>
             <TableRow hover>
               <TableCell sx={{ fontWeight: 'bold' }}>Number of members</TableCell>
-              <TableCell>{projectData.numberOfMembers}</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }}>Number of tasks</TableCell>
-              <TableCell>{projectData.numberOfTasks}</TableCell>
+              <TableCell>{groupInfo.total_members}</TableCell>
             </TableRow>
             <TableRow hover>
               <TableCell sx={{ fontWeight: 'bold' }}>Description</TableCell>
-              <TableCell colSpan={3}>{projectData.description}</TableCell>
+              <TableCell>{groupInfo.description || 'No description'}</TableCell>
             </TableRow>
           </TableBody>
         </Table>

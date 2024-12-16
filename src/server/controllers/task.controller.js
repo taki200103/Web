@@ -111,7 +111,7 @@ const TaskController = {
 
     getTasksByType: async (req, res) => {
         try {
-            const { taskTypeId } = req.params;
+            const { taskTypeId } = req.params;  // taskTypeId sẽ trùng với priority
             const user_id = req.user.user_id;
 
             const query = `
@@ -126,15 +126,26 @@ const TaskController = {
                     TO_CHAR(ut.date_begin, 'DD/MM/YYYY') || ' ' || 
                     TO_CHAR(ut.start_time, 'HH24:MI') as "timeStart",
                     TO_CHAR(ut.date_end, 'DD/MM/YYYY') || ' ' || 
-                    TO_CHAR(ut.end_time, 'HH24:MI') as "timeEnd"
-                FROM "User_Task" ut
-                JOIN "Users" u ON ut.user_id = u.user_id
-                WHERE ut.task_type_id = $1 
-                AND ut.user_id = $2
+                    TO_CHAR(ut.end_time, 'HH24:MI') as "timeEnd",
+                    tt.task_type_name as "taskType"
+                FROM "Users" u
+                JOIN "User_Task" ut ON u.user_id = ut.user_id
+                JOIN "Task_Type" tt ON ut.task_type_id = tt.task_type_id
+                WHERE u.user_id = $1 
+                AND tt.priority = $2
                 ORDER BY ut.date_created DESC, ut.time_created DESC
             `;
 
-            const result = await pool.query(query, [taskTypeId, user_id]);
+            // Log để debug
+            console.log('Executing query with:', {
+                user_id,
+                taskTypeId,
+                query
+            });
+
+            const result = await pool.query(query, [user_id, taskTypeId]);
+
+            console.log('Query result:', result.rows);
 
             res.status(200).json({
                 message: "Lấy danh sách công việc thành công!",
@@ -145,6 +156,125 @@ const TaskController = {
             console.error('Get tasks error:', error);
             res.status(500).json({
                 message: "Lỗi khi lấy danh sách công việc!",
+                error: error.message
+            });
+        }
+    },
+
+    deleteTask: async (req, res) => {
+        try {
+            const { taskIds } = req.body; // Nhận mảng các task_uid cần xóa
+            const user_id = req.user.user_id;
+
+            // Kiểm tra quyền sở hữu các task trước khi xóa
+            const checkOwnershipQuery = `
+                SELECT task_uid 
+                FROM "User_Task" 
+                WHERE task_uid = ANY($1) 
+                AND user_id = $2
+            `;
+            const ownershipResult = await pool.query(checkOwnershipQuery, [taskIds, user_id]);
+
+            if (ownershipResult.rows.length !== taskIds.length) {
+                return res.status(403).json({
+                    message: "Bạn không có quyền xóa một số công việc đã chọn!"
+                });
+            }
+
+            // Thực hiện xóa các task
+            const deleteQuery = `
+                DELETE FROM "User_Task"
+                WHERE task_uid = ANY($1)
+                AND user_id = $2
+                RETURNING task_uid
+            `;
+
+            const result = await pool.query(deleteQuery, [taskIds, user_id]);
+
+            res.status(200).json({
+                message: "Xóa công việc thành công!",
+                deletedTasks: result.rows.map(row => row.task_uid)
+            });
+
+        } catch (error) {
+            console.error('Delete tasks error:', error);
+            res.status(500).json({
+                message: "Lỗi khi xóa công việc!",
+                error: error.message
+            });
+        }
+    },
+
+    updateTask: async (req, res) => {
+        try {
+            const { taskId } = req.params;
+            const { 
+                taskName, 
+                description, 
+                timeBegin, 
+                timeEnd, 
+                dateBegin, 
+                dateEnd,
+                status 
+            } = req.body;
+            const user_id = req.user.user_id;
+
+            // Kiểm tra quyền sở hữu task
+            const checkOwnershipQuery = `
+                SELECT * FROM "User_Task"
+                WHERE task_uid = $1 AND user_id = $2
+            `;
+            const ownershipResult = await pool.query(checkOwnershipQuery, [taskId, user_id]);
+
+            if (ownershipResult.rows.length === 0) {
+                return res.status(403).json({
+                    message: "Bạn không có quyền chỉnh sửa công việc này!"
+                });
+            }
+
+            // Cập nhật task
+            const updateQuery = `
+                UPDATE "User_Task"
+                SET 
+                    task_uname = $1,
+                    description = $2,
+                    date_begin = $3,
+                    date_end = $4,
+                    start_time = $5::time,
+                    end_time = $6::time,
+                    status = $7
+                WHERE task_uid = $8 AND user_id = $9
+                RETURNING *
+            `;
+
+            const result = await pool.query(updateQuery, [
+                taskName,
+                description,
+                dateBegin,
+                dateEnd,
+                timeBegin,
+                timeEnd,
+                status,
+                taskId,
+                user_id
+            ]);
+
+            // Lấy thông tin user
+            const userQuery = `SELECT user_name FROM "Users" WHERE user_id = $1`;
+            const userResult = await pool.query(userQuery, [user_id]);
+
+            res.status(200).json({
+                message: "Cập nhật công việc thành công!",
+                task: {
+                    ...result.rows[0],
+                    createdBy: userResult.rows[0].user_name
+                }
+            });
+
+        } catch (error) {
+            console.error('Update task error:', error);
+            res.status(500).json({
+                message: "Lỗi khi cập nhật công việc!",
                 error: error.message
             });
         }
