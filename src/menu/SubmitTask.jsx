@@ -14,12 +14,13 @@ const SubmitTask = ({ onSubmit, onClose, taskTypeId }) => {
 
   const [errors, setErrors] = useState({
     dateError: "",
-    timeError: ""
+    timeError: "",
+    taskNameError: ""
   });
 
   const validateDates = (newFormData) => {
     const { dateBegin, dateEnd, timeBegin, timeEnd } = newFormData;
-    let newErrors = { dateError: "", timeError: "" };
+    let newErrors = { ...errors, dateError: "", timeError: "" };
 
     if (dateBegin && dateEnd) {
       if (new Date(dateEnd) < new Date(dateBegin)) {
@@ -39,25 +40,67 @@ const SubmitTask = ({ onSubmit, onClose, taskTypeId }) => {
     const { name, value } = e.target;
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
-    validateDates(newFormData);
+    
+    if (name === "taskName") {
+      // Reset task name error when user types
+      setErrors(prev => ({ ...prev, taskNameError: "" }));
+    } else {
+      validateDates(newFormData);
+    }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (validateDates(formData)) {
-      if (onSubmit) {
-        onSubmit(formData);
+
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(
+        `http://localhost:3000/api/tasks/by-type/${taskTypeId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch tasks');
       }
-      setFormData({
-        taskName: "",
-        description: "",
-        timeBegin: "",
-        timeEnd: "",
-        dateBegin: "",
-        dateEnd: "",
-        taskTypeId: taskTypeId
-      });
-      setErrors({ dateError: "", timeError: "" });
+
+      const data = await response.json();
+      const isDuplicate = data.tasks.some(task => 
+        task.task.toLowerCase() === formData.taskName.toLowerCase()
+      );
+
+      if (isDuplicate) {
+        setErrors(prev => ({
+          ...prev,
+          taskNameError: "Tên công việc đã tồn tại trong danh sách!"
+        }));
+        return;
+      }
+
+      if (validateDates(formData)) {
+        if (onSubmit) {
+          onSubmit(formData);
+        }
+        setFormData({
+          taskName: "",
+          description: "",
+          timeBegin: "",
+          timeEnd: "",
+          dateBegin: "",
+          dateEnd: "",
+          taskTypeId: taskTypeId
+        });
+        setErrors({ dateError: "", timeError: "", taskNameError: "" });
+      }
+    } catch (error) {
+      console.error("Error checking task name:", error);
+      setErrors(prev => ({
+        ...prev,
+        taskNameError: "Lỗi khi kiểm tra tên công việc"
+      }));
     }
   };
 
@@ -92,6 +135,8 @@ const SubmitTask = ({ onSubmit, onClose, taskTypeId }) => {
               value={formData.taskName}
               onChange={handleChange}
               required
+              error={!!errors.taskNameError}
+              helperText={errors.taskNameError}
             />
           </Grid>
           <Grid item xs={12}>
