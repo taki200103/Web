@@ -12,25 +12,53 @@ const SubmitTask = ({ onSubmit, onClose, taskTypeId }) => {
     taskTypeId: taskTypeId
   });
 
+  const [errors, setErrors] = useState({
+    dateError: "",
+    timeError: ""
+  });
+
+  const validateDates = (newFormData) => {
+    const { dateBegin, dateEnd, timeBegin, timeEnd } = newFormData;
+    let newErrors = { dateError: "", timeError: "" };
+
+    if (dateBegin && dateEnd) {
+      if (new Date(dateEnd) < new Date(dateBegin)) {
+        newErrors.dateError = "Ngày kết thúc phải sau ngày bắt đầu";
+      } else if (dateBegin === dateEnd && timeBegin && timeEnd) {
+        if (timeEnd <= timeBegin) {
+          newErrors.timeError = "Thời gian kết thúc phải sau thời gian bắt đầu";
+        }
+      }
+    }
+
+    setErrors(newErrors);
+    return !newErrors.dateError && !newErrors.timeError;
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    const newFormData = { ...formData, [name]: value };
+    setFormData(newFormData);
+    validateDates(newFormData);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (onSubmit) {
-      onSubmit(formData);
+    if (validateDates(formData)) {
+      if (onSubmit) {
+        onSubmit(formData);
+      }
+      setFormData({
+        taskName: "",
+        description: "",
+        timeBegin: "",
+        timeEnd: "",
+        dateBegin: "",
+        dateEnd: "",
+        taskTypeId: taskTypeId
+      });
+      setErrors({ dateError: "", timeError: "" });
     }
-    setFormData({
-      taskName: "",
-      description: "",
-      timeBegin: "",
-      timeEnd: "",
-      dateBegin: "",
-      dateEnd: "",
-      taskTypeId: taskTypeId
-    });
   };
 
   return (
@@ -81,40 +109,14 @@ const SubmitTask = ({ onSubmit, onClose, taskTypeId }) => {
           <Grid item xs={6}>
             <TextField
               fullWidth
-              label="Time Begin"
-              name="timeBegin"
-              type="time"
-              value={formData.timeBegin}
-              onChange={handleChange}
-              required
-              InputLabelProps={{
-                shrink: true,
-              }}
-            />
-          </Grid>
-          <Grid item xs={6}>
-            <TextField
-              fullWidth
-              label="Time End"
-              name="timeEnd"
-              type="time"
-              value={formData.timeEnd}
-              onChange={handleChange}
-              required
-              InputLabelProps={{
-                shrink: true,
-              }}
-            />
-          </Grid>
-          <Grid item xs={6}>
-            <TextField
-              fullWidth
               label="Date Begin"
               name="dateBegin"
               type="date"
               value={formData.dateBegin}
               onChange={handleChange}
               required
+              error={!!errors.dateError}
+              helperText={errors.dateError}
               InputLabelProps={{
                 shrink: true,
               }}
@@ -129,6 +131,40 @@ const SubmitTask = ({ onSubmit, onClose, taskTypeId }) => {
               value={formData.dateEnd}
               onChange={handleChange}
               required
+              error={!!errors.dateError}
+              helperText={errors.dateError}
+              InputLabelProps={{
+                shrink: true,
+              }}
+            />
+          </Grid>
+          <Grid item xs={6}>
+            <TextField
+              fullWidth
+              label="Time Begin"
+              name="timeBegin"
+              type="time"
+              value={formData.timeBegin}
+              onChange={handleChange}
+              required
+              error={!!errors.timeError}
+              helperText={errors.timeError}
+              InputLabelProps={{
+                shrink: true,
+              }}
+            />
+          </Grid>
+          <Grid item xs={6}>
+            <TextField
+              fullWidth
+              label="Time End"
+              name="timeEnd"
+              type="time"
+              value={formData.timeEnd}
+              onChange={handleChange}
+              required
+              error={!!errors.timeError}
+              helperText={errors.timeError}
               InputLabelProps={{
                 shrink: true,
               }}
