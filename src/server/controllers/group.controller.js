@@ -435,7 +435,6 @@ const GroupController = {
             const { groupId } = req.params;
             const { taskName, description, dateBegin, dateEnd, timeBegin, timeEnd, userId } = req.body;
             const leader_id = req.user.user_id;
-            const task_id = Math.floor(Math.random() * 1000000); // Tạo task_id ngẫu nhiên
 
             // Kiểm tra quyền leader
             const checkLeaderQuery = `
@@ -454,21 +453,20 @@ const GroupController = {
             // Kiểm tra member được assign có trong group không
             const checkMemberQuery = `
                 SELECT * FROM "Group_Member"
-                WHERE group_id = $1 AND user_id = $2
+                WHERE group_id = $1 AND user_id = $2 AND request = 'accepted'
             `;
             const memberResult = await pool.query(checkMemberQuery, [groupId, userId]);
             
             if (memberResult.rows.length === 0) {
                 return res.status(403).json({
                     success: false,
-                    message: "Thành viên được chọn không thuộc nhóm!"
+                    message: "Thành viên được chọn không thuộc nhóm hoặc chưa được chấp nhận!"
                 });
             }
 
-            // Tạo task mới với task_id ngẫu nhiên
+            // Tạo task mới
             const createTaskQuery = `
                 INSERT INTO "Group_Task" (
-                    task_id,
                     group_task_name,
                     task_description,
                     status,
@@ -479,12 +477,11 @@ const GroupController = {
                     time_begin,
                     time_end
                 )
-                VALUES ($1, $2, $3, 'PENDING', $4, $5, $6, $7, $8, $9)
+                VALUES ($1, $2, 'PENDING', $3, $4, $5, $6, $7, $8)
                 RETURNING *
             `;
 
             const result = await pool.query(createTaskQuery, [
-                task_id,
                 taskName,
                 description,
                 groupId,
@@ -495,7 +492,7 @@ const GroupController = {
                 timeEnd
             ]);
 
-            // Lấy thêm thông tin user được assign
+            // Lấy thông tin user được assign
             const userQuery = `SELECT user_name FROM "Users" WHERE user_id = $1`;
             const userResult = await pool.query(userQuery, [userId]);
 
@@ -557,6 +554,253 @@ const GroupController = {
             res.status(500).json({
                 success: false,
                 message: "Lỗi khi xóa công việc!",
+                error: error.message
+            });
+        }
+    },
+
+    updateGroupTask: async (req, res) => {
+        try {
+            const { groupId, taskId } = req.params;
+            const { taskName, description, dateBegin, dateEnd, timeBegin, timeEnd, userId } = req.body;
+            const leader_id = req.user.user_id;
+
+            // Kiểm tra quyền leader
+            const checkLeaderQuery = `
+                SELECT * FROM "Group_Member"
+                WHERE group_id = $1 AND user_id = $2 AND role = 'leader'
+            `;
+            const leaderResult = await pool.query(checkLeaderQuery, [groupId, leader_id]);
+            
+            if (leaderResult.rows.length === 0) {
+                return res.status(403).json({
+                    success: false,
+                    message: "Chỉ leader mới có quyền cập nhật công việc!"
+                });
+            }
+
+            // Kiểm tra member được assign có trong group không
+            const checkMemberQuery = `
+                SELECT * FROM "Group_Member"
+                WHERE group_id = $1 AND user_id = $2 AND request = 'accepted'
+            `;
+            const memberResult = await pool.query(checkMemberQuery, [groupId, userId]);
+            
+            if (memberResult.rows.length === 0) {
+                return res.status(403).json({
+                    success: false,
+                    message: "Thành viên được chọn không thuộc nhóm hoặc chưa được chấp nhận!"
+                });
+            }
+
+            // Cập nhật thông tin task
+            const updateTaskQuery = `
+                UPDATE "Group_Task"
+                SET 
+                    group_task_name = $1,
+                    task_description = $2,
+                    user_id = $3,
+                    date_begin = $4,
+                    date_end = $5,
+                    time_begin = $6,
+                    time_end = $7
+                WHERE task_id = $8 AND group_id = $9
+                RETURNING *
+            `;
+
+            const result = await pool.query(updateTaskQuery, [
+                taskName,
+                description,
+                userId,
+                dateBegin,
+                dateEnd,
+                timeBegin,
+                timeEnd,
+                taskId,
+                groupId
+            ]);
+
+            if (result.rows.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Không tìm thấy công việc cần cập nhật!"
+                });
+            }
+
+            // Lấy thông tin user được assign
+            const userQuery = `SELECT user_name FROM "Users" WHERE user_id = $1`;
+            const userResult = await pool.query(userQuery, [userId]);
+
+            const task = {
+                ...result.rows[0],
+                user_name: userResult.rows[0].user_name
+            };
+
+            res.status(200).json({
+                success: true,
+                message: "Cập nhật công việc thành công!",
+                task
+            });
+
+        } catch (error) {
+            console.error('Update task error:', error);
+            res.status(500).json({
+                success: false,
+                message: "Lỗi khi cập nhật công việc!",
+                error: error.message
+            });
+        }
+    },
+
+    getGroupRequests: async (req, res) => {
+        try {
+            const { groupId } = req.params;
+            const user_id = req.user.user_id;
+
+            // Kiểm tra người dùng có phải leader không
+            const checkLeaderQuery = `
+                SELECT * FROM "Group_Member"
+                WHERE group_id = $1 AND user_id = $2 AND role = 'leader'
+            `;
+            const leaderResult = await pool.query(checkLeaderQuery, [groupId, user_id]);
+            
+            if (leaderResult.rows.length === 0) {
+                return res.status(403).json({
+                    success: false,
+                    message: "Chỉ leader mới có quyền xem danh sách yêu cầu!"
+                });
+            }
+
+            // Lấy danh sách yêu cầu
+            const requestsQuery = `
+                SELECT u.user_id, u.user_name, gm.date_join, gm.time_join
+                FROM "Group_Member" gm
+                JOIN "Users" u ON gm.user_id = u.user_id
+                WHERE gm.group_id = $1 AND gm.request = 'waiting'
+            `;
+            const result = await pool.query(requestsQuery, [groupId]);
+
+            res.status(200).json({
+                success: true,
+                requests: result.rows
+            });
+
+        } catch (error) {
+            console.error('Get group requests error:', error);
+            res.status(500).json({
+                success: false,
+                message: "Lỗi khi lấy danh sách yêu cầu!",
+                error: error.message
+            });
+        }
+    },
+
+    requestJoinGroup: async (req, res) => {
+        try {
+            const { groupId } = req.params;
+            const user_id = req.user.user_id;
+
+            // Kiểm tra group tồn tại
+            const checkGroupQuery = `SELECT * FROM "Group" WHERE group_id = $1`;
+            const groupExists = await pool.query(checkGroupQuery, [groupId]);
+            
+            if (groupExists.rows.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Không tìm thấy nhóm!"
+                });
+            }
+
+            // Kiểm tra user đã trong nhóm chưa
+            const checkMemberQuery = `
+                SELECT * FROM "Group_Member"
+                WHERE group_id = $1 AND user_id = $2
+            `;
+            const memberExists = await pool.query(checkMemberQuery, [groupId, user_id]);
+            
+            if (memberExists.rows.length > 0) {
+                if (memberExists.rows[0].request === 'waiting') {
+                    return res.status(400).json({
+                        success: false,
+                        message: "Bạn đã gửi yêu cầu vào nhóm này rồi!"
+                    });
+                } else if (memberExists.rows[0].request === 'accepted') {
+                    return res.status(400).json({
+                        success: false,
+                        message: "Bạn đã là thành viên của nhóm này rồi!"
+                    });
+                }
+            }
+
+            // Thêm yêu cầu vào nhóm
+            const addRequestQuery = `
+                INSERT INTO "Group_Member" (user_id, group_id, role, request)
+                VALUES ($1, $2, 'member', 'waiting')
+                RETURNING *
+            `;
+            await pool.query(addRequestQuery, [user_id, groupId]);
+
+            res.status(200).json({
+                success: true,
+                message: "Đã gửi yêu cầu tham gia nhóm!"
+            });
+
+        } catch (error) {
+            console.error('Request join group error:', error);
+            res.status(500).json({
+                success: false,
+                message: "Lỗi khi gửi yêu cầu tham gia nhóm!",
+                error: error.message
+            });
+        }
+    },
+
+    handleJoinRequest: async (req, res) => {
+        try {
+            const { groupId, userId } = req.params;
+            const { action } = req.body;
+            const leader_id = req.user.user_id;
+
+            // Kiểm tra quyền leader
+            const checkLeaderQuery = `
+                SELECT * FROM "Group_Member"
+                WHERE group_id = $1 AND user_id = $2 AND role = 'leader'
+            `;
+            const leaderResult = await pool.query(checkLeaderQuery, [groupId, leader_id]);
+            
+            if (leaderResult.rows.length === 0) {
+                return res.status(403).json({
+                    success: false,
+                    message: "Chỉ leader mới có quyền xử lý yêu cầu!"
+                });
+            }
+
+            if (action === 'accept') {
+                const acceptQuery = `
+                    UPDATE "Group_Member"
+                    SET request = 'accepted'
+                    WHERE group_id = $1 AND user_id = $2
+                    RETURNING *
+                `;
+                await pool.query(acceptQuery, [groupId, userId]);
+            } else {
+                const rejectQuery = `
+                    DELETE FROM "Group_Member"
+                    WHERE group_id = $1 AND user_id = $2 AND request = 'waiting'
+                `;
+                await pool.query(rejectQuery, [groupId, userId]);
+            }
+
+            res.status(200).json({
+                success: true,
+                message: action === 'accept' ? "Đã chấp nhận yêu cầu!" : "Đã từ chối yêu cầu!"
+            });
+
+        } catch (error) {
+            console.error('Handle join request error:', error);
+            res.status(500).json({
+                success: false,
+                message: "Lỗi khi xử lý yêu cầu!",
                 error: error.message
             });
         }

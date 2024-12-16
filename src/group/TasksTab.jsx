@@ -28,6 +28,7 @@ const TaskTab = ({ groupId }) => {
   const [selectedTask, setSelectedTask] = useState(null);
   const [openGroupSubmit, setOpenGroupSubmit] = useState(false);
   const [isLeader, setIsLeader] = useState(false);
+  const [editTask, setEditTask] = useState(null);
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -113,6 +114,45 @@ const TaskTab = ({ groupId }) => {
     } catch (error) {
       console.error('Error adding task:', error);
       alert(error.response?.data?.message || 'Có lỗi xảy ra khi thêm công việc!');
+    }
+  };
+
+  const handleEditTask = async (formData) => {
+    try {
+        if (!editTask?.task_id) {
+            throw new Error('Không tìm thấy task_id');
+        }
+
+        const token = localStorage.getItem('authToken');
+        const response = await axios.put(
+            `http://localhost:3000/api/groups/${groupId}/tasks/${editTask.task_id}`,
+            {
+                taskName: formData.taskName,
+                description: formData.description,
+                dateBegin: formData.dateBegin,
+                dateEnd: formData.dateEnd,
+                timeBegin: formData.timeBegin,
+                timeEnd: formData.timeEnd,
+                userId: formData.memberId
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            }
+        );
+
+        if (response.data.success) {
+            setTasks(prev => prev.map(task => 
+                task.task_id === editTask.task_id ? response.data.task : task
+            ));
+            setEditTask(null);
+            setOpenGroupSubmit(false);
+            alert('Cập nhật công việc thành công!');
+        }
+    } catch (error) {
+        console.error('Error updating task:', error);
+        alert(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật công việc!');
     }
   };
 
@@ -244,6 +284,18 @@ const TaskTab = ({ groupId }) => {
           )}
         </DialogContent>
         <DialogActions>
+          {isLeader && (
+            <Button 
+              onClick={() => {
+                handleCloseDialog();
+                setEditTask(selectedTask);
+                setOpenGroupSubmit(true);
+              }} 
+              color="primary"
+            >
+              Edit
+            </Button>
+          )}
           <Button onClick={handleCloseDialog} color="primary">
             Close
           </Button>
@@ -252,9 +304,10 @@ const TaskTab = ({ groupId }) => {
 
       <Dialog open={openGroupSubmit} onClose={handleCloseGroupSubmit} maxWidth="sm" fullWidth>
         <GroupSubmit 
-          onSubmit={handleSubmitNewTask} 
+          onSubmit={editTask ? handleEditTask : handleSubmitNewTask} 
           onClose={handleCloseGroupSubmit}
           groupId={groupId}
+          editData={editTask}
         />
       </Dialog>
     </TableContainer>

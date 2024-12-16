@@ -1,15 +1,15 @@
 import React, { useState } from "react";
 import { TextField, Button, Grid, Typography, Box } from "@mui/material";
 
-const GroupSubmit = ({ onSubmit }) => {
+const GroupSubmit = ({ onSubmit, onClose, groupId, editData }) => {
   const [formData, setFormData] = useState({
-    taskName: "",
-    description: "",
-    timeBegin: "",
-    timeEnd: "",
-    dateBegin: "",
-    dateEnd: "",
-    memberId: "", // Thêm trường Member ID
+    taskName: editData?.group_task_name || "",
+    description: editData?.task_description || "",
+    timeBegin: editData?.time_begin?.substring(0, 5) || "",
+    timeEnd: editData?.time_end?.substring(0, 5) || "",
+    dateBegin: editData?.date_begin?.substring(0, 10) || "",
+    dateEnd: editData?.date_end?.substring(0, 10) || "",
+    memberId: editData?.user_id || "",
   });
 
   const handleChange = (e) => {
@@ -29,7 +29,7 @@ const GroupSubmit = ({ onSubmit }) => {
       timeEnd: "",
       dateBegin: "",
       dateEnd: "",
-      memberId: "", // Reset Member ID
+      memberId: "",
     });
   };
 
@@ -52,7 +52,7 @@ const GroupSubmit = ({ onSubmit }) => {
           color: "#4682B4",
         }}
       >
-        Group Submit
+        {editData ? 'Edit Task' : 'Create Task'}
       </Typography>
       <form onSubmit={handleSubmit}>
         <Grid container spacing={2}>
