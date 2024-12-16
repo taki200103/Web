@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Box, IconButton, Menu, MenuItem, Dialog, Typography } from '@mui/material';
+import { Box, IconButton, Menu, MenuItem, Dialog, Typography, DialogTitle, DialogContent, DialogActions, TextField, Button } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import GroupMenu from '../group/GroupMenu';
 import UserProfile from '../user_info/user_menu';
 import { useNavigate } from 'react-router-dom';
 import CreateGroupDialog from './CreateGroupDialog';
 import axios from 'axios';
+import GroupAddIcon from '@mui/icons-material/GroupAdd';
 
 //
 
@@ -18,6 +19,8 @@ const Component1 = ({ user }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [openCreateGroup, setOpenCreateGroup] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState(null);
+  const [openJoinDialog, setOpenJoinDialog] = useState(false);
+  const [groupIdToJoin, setGroupIdToJoin] = useState('');
 
   useEffect(() => {
     const fetchGroups = async () => {
@@ -103,6 +106,37 @@ const Component1 = ({ user }) => {
     setGroups(prev => [...prev, newGroup]);
   };
 
+  const handleJoinGroup = async () => {
+    try {
+        if (!groupIdToJoin.trim()) {
+            alert('Vui lòng nhập Group ID!');
+            return;
+        }
+
+        const token = localStorage.getItem('authToken');
+        const response = await axios.post(
+            `http://localhost:3000/api/groups/${groupIdToJoin}/join`,
+            {},
+            {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            }
+        );
+
+        if (response.data.success) {
+            alert(response.data.message);
+            setOpenJoinDialog(false);
+            setGroupIdToJoin('');
+        } else {
+            alert(response.data.message || 'Có lỗi xảy ra!');
+        }
+    } catch (error) {
+        console.error('Join group error:', error);
+        alert(error.response?.data?.message || 'Có lỗi xảy ra khi tham gia nhóm!');
+    }
+  };
+
   return (
     <Box
       sx={{
@@ -137,12 +171,15 @@ const Component1 = ({ user }) => {
           display: 'flex',
           justifyContent: 'flex-start', // Căn trái các phần tử
           width: '100%',
-          gap: 1, // Khoảng cách 8px giữa các phần tử
+          gap: 1, // Khoảng cách 8px giữa các phần t
           mb: 2,
         }}
       >
         <IconButton onClick={handleAddGroup} color="primary">
           <AddIcon />
+        </IconButton>
+        <IconButton onClick={() => setOpenJoinDialog(true)} color="primary">
+          <GroupAddIcon />
         </IconButton>
       </Box>
 
@@ -252,6 +289,43 @@ const Component1 = ({ user }) => {
         onClose={() => setOpenCreateGroup(false)}
         onSuccess={handleGroupCreated}
       />
+
+      <Dialog open={openJoinDialog} onClose={() => setOpenJoinDialog(false)}>
+        <DialogTitle>Tham gia nhóm</DialogTitle>
+        <DialogContent>
+            <TextField
+                autoFocus
+                margin="dense"
+                label="Nhập Group ID"
+                fullWidth
+                value={groupIdToJoin}
+                onChange={(e) => setGroupIdToJoin(e.target.value)}
+                sx={{
+                    '& .MuiInputLabel-root': {
+                        color: '#000000',  // Màu đen cho label
+                        fontWeight: 400    // Giảm độ đậm của chữ (normal weight)
+                    },
+                    '& .MuiOutlinedInput-root': {
+                        '& fieldset': {
+                            borderColor: '#1976d2'  // Màu xanh cho border
+                        },
+                        '&:hover fieldset': {
+                            borderColor: '#1976d2'  // Màu xanh khi hover
+                        }
+                    }
+                }}
+            />
+        </DialogContent>
+        <DialogActions>
+            <Button onClick={() => setOpenJoinDialog(false)}>Hủy</Button>
+            <Button 
+                onClick={handleJoinGroup}
+                disabled={groupIdToJoin.trim() === ''}
+            >
+                Gửi yêu cầu
+            </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

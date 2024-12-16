@@ -16,6 +16,8 @@ import {
   DialogActions,
   TextField,
   CircularProgress,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import axios from 'axios';
 
@@ -27,36 +29,61 @@ const MembersTab = ({ groupId }) => {
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
+  const [requests, setRequests] = useState([]);
+  const [activeTab, setActiveTab] = useState(0);
+
+  const fetchMembers = async () => {
+    if (!groupId) return;
+
+    try {
+      const token = localStorage.getItem('authToken');
+      console.log('Fetching members for group:', groupId);
+      
+      const response = await axios.get(
+        `http://localhost:3000/api/groups/${groupId}/members`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      console.log('Members response:', response.data);
+      setMembers(response.data.members);
+      setIsLeader(response.data.isLeader);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching members:', error);
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchMembers = async () => {
-      if (!groupId) return;
+    fetchMembers();
+  }, [groupId]);
 
+  useEffect(() => {
+    const fetchRequests = async () => {
       try {
         const token = localStorage.getItem('authToken');
-        console.log('Fetching members for group:', groupId);
-        
         const response = await axios.get(
-          `http://localhost:3000/api/groups/${groupId}/members`,
+          `http://localhost:3000/api/groups/${groupId}/requests`,
           {
             headers: {
               'Authorization': `Bearer ${token}`
             }
           }
         );
-
-        console.log('Members response:', response.data);
-        setMembers(response.data.members);
-        setIsLeader(response.data.isLeader);
-        setLoading(false);
+        setRequests(response.data.requests);
       } catch (error) {
-        console.error('Error fetching members:', error);
-        setLoading(false);
+        console.error('Error fetching requests:', error);
       }
     };
 
-    fetchMembers();
-  }, [groupId]);
+    if (isLeader) {
+      fetchRequests();
+    }
+  }, [groupId, isLeader]);
 
   const handleOpenDialog = () => setOpenDialog(true);
   const handleCloseDialog = () => {
@@ -143,6 +170,35 @@ const MembersTab = ({ groupId }) => {
     }
   };
 
+  const handleRequest = async (userId, action) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      await axios.put(
+        `http://localhost:3000/api/groups/${groupId}/requests/${userId}`,
+        { action },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      // Cập nhật UI
+      setRequests(prev => prev.filter(req => req.user_id !== userId));
+      if (action === 'accept') {
+        // Thêm thành viên mới vào danh sách
+        await fetchMembers();
+      }
+    } catch (error) {
+      console.error('Error handling request:', error);
+      alert(error.response?.data?.message || 'Có lỗi xảy ra!');
+    }
+  };
+
+  const handleChangeTab = (event, newValue) => {
+    setActiveTab(newValue);
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
@@ -168,53 +224,101 @@ const MembersTab = ({ groupId }) => {
         )}
       </Box>
 
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>User ID</TableCell>
-              <TableCell>Name</TableCell>
-              <TableCell>Role</TableCell>
-              <TableCell>Joined At</TableCell>
-              {isLeader && <TableCell align="center">Actions</TableCell>}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {members.length === 0 ? (
+      <Tabs value={activeTab} onChange={handleChangeTab}>
+        <Tab label="Members" />
+        {isLeader && <Tab label="Requests" />}
+      </Tabs>
+
+      {activeTab === 0 && (
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
               <TableRow>
-                <TableCell colSpan={isLeader ? 5 : 4} align="center">
-                  Chưa có thành viên nào
-                </TableCell>
+                <TableCell>User ID</TableCell>
+                <TableCell>Name</TableCell>
+                <TableCell>Role</TableCell>
+                <TableCell>Joined At</TableCell>
+                {isLeader && <TableCell align="center">Actions</TableCell>}
               </TableRow>
-            ) : (
-              members.map((member) => (
-                <TableRow key={member.user_id}>
-                  <TableCell>{member.user_id}</TableCell>
-                  <TableCell>{member.user_name}</TableCell>
-                  <TableCell>{member.role}</TableCell>
-                  <TableCell>
-                    {new Date(member.date_join).toLocaleDateString('vi-VN')} {member.time_join?.substring(0, 5)}
+            </TableHead>
+            <TableBody>
+              {members.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={isLeader ? 5 : 4} align="center">
+                    Chưa có thành viên nào
                   </TableCell>
-                  {isLeader && (
-                    <TableCell align="center">
-                      {member.role !== 'leader' && (
-                        <Button
-                          variant="outlined"
-                          color="error"
-                          size="small"
-                          onClick={() => handleDeleteClick(member)}
-                        >
-                          Delete
-                        </Button>
-                      )}
-                    </TableCell>
-                  )}
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+              ) : (
+                members.map((member) => (
+                  <TableRow key={member.user_id}>
+                    <TableCell>{member.user_id}</TableCell>
+                    <TableCell>{member.user_name}</TableCell>
+                    <TableCell>{member.role}</TableCell>
+                    <TableCell>
+                      {new Date(member.date_join).toLocaleDateString('vi-VN')} {member.time_join?.substring(0, 5)}
+                    </TableCell>
+                    {isLeader && (
+                      <TableCell align="center">
+                        {member.role !== 'leader' && (
+                          <Button
+                            variant="outlined"
+                            color="error"
+                            size="small"
+                            onClick={() => handleDeleteClick(member)}
+                          >
+                            Delete
+                          </Button>
+                        )}
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+
+      {activeTab === 1 && isLeader && (
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Tên</TableCell>
+                <TableCell>Ngày yêu cầu</TableCell>
+                <TableCell>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {requests.map((request) => (
+                <TableRow key={request.user_id}>
+                  <TableCell>{request.user_name}</TableCell>
+                  <TableCell>
+                    {new Date(request.date_join).toLocaleDateString()} {request.time_join?.substring(0, 5)}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      onClick={() => handleRequest(request.user_id, 'accept')}
+                      sx={{ mr: 1 }}
+                    >
+                      Chấp nhận
+                    </Button>
+                    <Button
+                      variant="contained"
+                      color="error"
+                      onClick={() => handleRequest(request.user_id, 'reject')}
+                    >
+                      Từ chối
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
 
       <Dialog open={openDialog} onClose={handleCloseDialog}>
         <DialogTitle>Add New Member</DialogTitle>
