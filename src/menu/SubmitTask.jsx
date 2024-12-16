@@ -154,9 +154,9 @@ const SubmitTask = ({ onSubmit, onClose, taskTypeId }) => {
           <Grid item xs={6}>
             <TextField
               fullWidth
-              label="Date Begin"
-              name="dateBegin"
               type="date"
+              label="Start Date"
+              name="dateBegin"
               value={formData.dateBegin}
               onChange={handleChange}
               required
@@ -170,9 +170,9 @@ const SubmitTask = ({ onSubmit, onClose, taskTypeId }) => {
           <Grid item xs={6}>
             <TextField
               fullWidth
-              label="Date End"
-              name="dateEnd"
               type="date"
+              label="End Date"
+              name="dateEnd"
               value={formData.dateEnd}
               onChange={handleChange}
               required
@@ -186,9 +186,9 @@ const SubmitTask = ({ onSubmit, onClose, taskTypeId }) => {
           <Grid item xs={6}>
             <TextField
               fullWidth
-              label="Time Begin"
-              name="timeBegin"
               type="time"
+              label="Start Time"
+              name="timeBegin"
               value={formData.timeBegin}
               onChange={handleChange}
               required
@@ -202,9 +202,9 @@ const SubmitTask = ({ onSubmit, onClose, taskTypeId }) => {
           <Grid item xs={6}>
             <TextField
               fullWidth
-              label="Time End"
-              name="timeEnd"
               type="time"
+              label="End Time"
+              name="timeEnd"
               value={formData.timeEnd}
               onChange={handleChange}
               required
