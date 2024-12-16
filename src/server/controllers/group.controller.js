@@ -465,8 +465,10 @@ const GroupController = {
             }
 
             // Tạo task mới
+            const task_id = Math.floor(Math.random() * 1000000).toString();
             const createTaskQuery = `
                 INSERT INTO "Group_Task" (
+                    task_id,
                     group_task_name,
                     task_description,
                     status,
@@ -477,13 +479,15 @@ const GroupController = {
                     time_begin,
                     time_end
                 )
-                VALUES ($1, $2, 'PENDING', $3, $4, $5, $6, $7, $8)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                 RETURNING *
             `;
 
             const result = await pool.query(createTaskQuery, [
+                task_id,
                 taskName,
                 description,
+                'PENDING',
                 groupId,
                 userId,
                 dateBegin,
