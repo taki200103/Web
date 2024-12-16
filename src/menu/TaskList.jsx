@@ -20,6 +20,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Grid
 } from "@mui/material";
 import SubmitTask from './SubmitTask';
 import axios from 'axios';
@@ -37,6 +38,11 @@ const TaskTab = ({ taskTypeId }) => {
   const [openSubmitTask, setOpenSubmitTask] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editFormData, setEditFormData] = useState(null);
+  const [editErrors, setEditErrors] = useState({
+    dateError: "",
+    timeError: "",
+    taskNameError: ""
+  });
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -179,9 +185,67 @@ const TaskTab = ({ taskTypeId }) => {
     setIsEditing(true);
   };
 
+  const validateEditDates = (formData) => {
+    const { dateBegin, dateEnd, timeBegin, timeEnd } = formData;
+    let newErrors = { dateError: "", timeError: "" };
+
+    if (dateBegin && dateEnd) {
+      if (new Date(dateEnd) < new Date(dateBegin)) {
+        newErrors.dateError = "Ngày kết thúc phải sau ngày bắt đầu";
+      } else if (dateBegin === dateEnd && timeBegin && timeEnd) {
+        if (timeEnd <= timeBegin) {
+          newErrors.timeError = "Thời gian kết thúc phải sau thời gian bắt đầu";
+        }
+      }
+    }
+
+    setEditErrors(prev => ({ ...prev, ...newErrors }));
+    return !newErrors.dateError && !newErrors.timeError;
+  };
+
+  const handleEditFormChange = (e) => {
+    const { name, value } = e.target;
+    const newFormData = { ...editFormData, [name]: value };
+    setEditFormData(newFormData);
+    
+    if (name === "taskName") {
+      setEditErrors(prev => ({ ...prev, taskNameError: "" }));
+    } else if (["dateBegin", "dateEnd", "timeBegin", "timeEnd"].includes(name)) {
+      validateEditDates(newFormData);
+    }
+  };
+
   const handleSubmitEdit = async () => {
     try {
+        // Validate dates first
+        if (!validateEditDates(editFormData)) {
+            return;
+        }
+
+        // Check for duplicate task name
         const token = localStorage.getItem('authToken');
+        const tasksResponse = await axios.get(
+          `http://localhost:3000/api/tasks/by-type/${taskTypeId}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }
+        );
+        
+        const isDuplicate = tasksResponse.data.tasks.some(task => 
+          task.task.toLowerCase() === editFormData.taskName.toLowerCase() &&
+          task.id !== selectedTask.id
+        );
+
+        if (isDuplicate) {
+          setEditErrors(prev => ({
+            ...prev,
+            taskNameError: "Tên công việc đã tồn tại!"
+          }));
+          return;
+        }
+
         const response = await axios.put(
             `http://localhost:3000/api/tasks/update/${selectedTask.id}`,
             editFormData,
@@ -192,7 +256,6 @@ const TaskTab = ({ taskTypeId }) => {
             }
         );
 
-        // Cập nhật state tasks
         setTasks(prevTasks => 
             prevTasks.map(task => 
                 task.id === selectedTask.id 
@@ -200,9 +263,18 @@ const TaskTab = ({ taskTypeId }) => {
                     : task
             )
         );
-
-        setIsEditing(false);
+        
         setOpenDialog(false);
+        setSelectedTask(null);
+        setEditFormData(null);
+        setIsEditing(false);
+        setEditErrors({
+          dateError: "",
+          timeError: "",
+          taskNameError: ""
+        });
+
+        // Show success message
         alert('Cập nhật công việc thành công!');
 
     } catch (error) {
@@ -328,88 +400,113 @@ const TaskTab = ({ taskTypeId }) => {
               <Typography>Description: {selectedTask.description}</Typography>
             </>
           ) : editFormData && (
-            <form>
-              <TextField
-                fullWidth
-                margin="normal"
-                label="Task Name"
-                value={editFormData.taskName}
-                onChange={(e) => setEditFormData({
-                  ...editFormData,
-                  taskName: e.target.value
-                })}
-              />
-              <TextField
-                fullWidth
-                margin="normal"
-                label="Description"
-                multiline
-                rows={4}
-                value={editFormData.description}
-                onChange={(e) => setEditFormData({
-                  ...editFormData,
-                  description: e.target.value
-                })}
-              />
-              <TextField
-                fullWidth
-                margin="normal"
-                type="date"
-                label="Date Begin"
-                value={editFormData.dateBegin}
-                onChange={(e) => setEditFormData({
-                  ...editFormData,
-                  dateBegin: e.target.value
-                })}
-              />
-              <TextField
-                fullWidth
-                margin="normal"
-                type="time"
-                label="Time Begin"
-                value={editFormData.timeBegin}
-                onChange={(e) => setEditFormData({
-                  ...editFormData,
-                  timeBegin: e.target.value
-                })}
-              />
-              <TextField
-                fullWidth
-                margin="normal"
-                type="date"
-                label="Date End"
-                value={editFormData.dateEnd}
-                onChange={(e) => setEditFormData({
-                  ...editFormData,
-                  dateEnd: e.target.value
-                })}
-              />
-              <TextField
-                fullWidth
-                margin="normal"
-                type="time"
-                label="Time End"
-                value={editFormData.timeEnd}
-                onChange={(e) => setEditFormData({
-                  ...editFormData,
-                  timeEnd: e.target.value
-                })}
-              />
-              <FormControl fullWidth margin="normal">
-                <InputLabel>Status</InputLabel>
-                <Select
-                  value={editFormData.status}
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Task Name"
+                  name="taskName"
+                  value={editFormData.taskName}
+                  onChange={handleEditFormChange}
+                  required
+                  error={!!editErrors.taskNameError}
+                  helperText={editErrors.taskNameError}
+                />
+              </Grid>
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  type="date"
+                  label="Start Date"
+                  name="dateBegin"
+                  value={editFormData.dateBegin}
+                  onChange={handleEditFormChange}
+                  required
+                  error={!!editErrors.dateError}
+                  helperText={editErrors.dateError}
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                />
+              </Grid>
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  type="date"
+                  label="End Date"
+                  name="dateEnd"
+                  value={editFormData.dateEnd}
+                  onChange={handleEditFormChange}
+                  required
+                  error={!!editErrors.dateError}
+                  helperText={editErrors.dateError}
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                />
+              </Grid>
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  type="time"
+                  label="Start Time"
+                  name="timeBegin"
+                  value={editFormData.timeBegin}
+                  onChange={handleEditFormChange}
+                  required
+                  error={!!editErrors.timeError}
+                  helperText={editErrors.timeError}
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                />
+              </Grid>
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  type="time"
+                  label="End Time"
+                  name="timeEnd"
+                  value={editFormData.timeEnd}
+                  onChange={handleEditFormChange}
+                  required
+                  error={!!editErrors.timeError}
+                  helperText={editErrors.timeError}
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Description"
+                  multiline
+                  rows={4}
+                  value={editFormData.description}
                   onChange={(e) => setEditFormData({
                     ...editFormData,
-                    status: e.target.value
+                    description: e.target.value
                   })}
-                >
-                  <MenuItem value="PENDING">PENDING</MenuItem>
-                  <MenuItem value="IN_PROGRESS">IN PROGRESS</MenuItem>
-                  <MenuItem value="COMPLETED">COMPLETED</MenuItem>
-                </Select>
-              </FormControl>
-            </form>
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <FormControl fullWidth margin="normal">
+                  <InputLabel>Status</InputLabel>
+                  <Select
+                    value={editFormData.status}
+                    onChange={(e) => setEditFormData({
+                      ...editFormData,
+                      status: e.target.value
+                    })}
+                  >
+                    <MenuItem value="PENDING">PENDING</MenuItem>
+                    <MenuItem value="IN_PROGRESS">IN PROGRESS</MenuItem>
+                    <MenuItem value="COMPLETED">COMPLETED</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
           )}
         </DialogContent>
         <DialogActions>
