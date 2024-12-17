@@ -54,7 +54,10 @@ const Component2 = () => {
                 alignItems: 'center',
               }}
             >
-              <IconButton onClick={handleDialogOpen} sx={{ color: '#fff' }}>
+              <IconButton 
+                onClick={handleDialogOpen} 
+                sx={{ color: '#fff' }}
+              >
                 <CalendarMonthIcon />
               </IconButton>
             </Box>
@@ -62,9 +65,29 @@ const Component2 = () => {
         </Box>
       ))}
 
-      <Dialog open={openDialog} onClose={handleDialogClose} maxWidth="md" fullWidth>
-        <DialogTitle>Chọn Ngày</DialogTitle>
-        <DialogContent>
+      <Dialog 
+        open={openDialog} 
+        onClose={handleDialogClose}
+        PaperProps={{
+          sx: {
+            width: '700px',
+            height: '700px',
+            maxWidth: '90vw',
+            maxHeight: '90vh'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          borderBottom: '1px solid #e0e0e0',
+          backgroundColor: '#f5f5f5',
+          padding: '16px 24px'
+        }}>
+          Lịch Công Việc
+        </DialogTitle>
+        <DialogContent sx={{ 
+          padding: '25px',
+          overflow: 'auto'
+        }}>
           <Calendar />
         </DialogContent>
       </Dialog>
