@@ -26,40 +26,6 @@ const TaskController = {
                 });
             }
 
-            // Kiểm tra và tạo Task_Type nếu chưa tồn tại
-            const checkTaskTypeQuery = `
-                SELECT * FROM "Task_Type" 
-                WHERE task_type_id = $1 
-                AND user_id = $2
-            `;
-            const taskTypeResult = await pool.query(checkTaskTypeQuery, [taskTypeId, user_id]);
-
-            if (taskTypeResult.rows.length === 0) {
-                const taskTypeNames = {
-                    1: 'Học Tập',
-                    2: 'Công Việc',
-                    3: 'Gia Đình',
-                    4: 'Hàng Ngày',
-                    5: 'Hàng Tháng',
-                    6: 'Hàng Năm'
-                };
-
-                const insertTaskTypeQuery = `
-                    INSERT INTO "Task_Type" 
-                    (task_type_id, task_type_name, description, user_id, priority)
-                    VALUES ($1, $2, $3, $4, $5)
-                    RETURNING *
-                `;
-
-                await pool.query(insertTaskTypeQuery, [
-                    taskTypeId,
-                    taskTypeNames[taskTypeId],
-                    `Danh sách công việc ${taskTypeNames[taskTypeId].toLowerCase()}`,
-                    user_id,
-                    taskTypeId
-                ]);
-            }
-
             const task_uid = uuidv4().substring(0, 8);
 
             // Thêm task mới với date_created và time_created mặc định
