@@ -7,28 +7,39 @@ const Calendar = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().getDate());
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
-  const [tasks, setTasks] = useState([]);
+  const [allTasks, setAllTasks] = useState([]);
+  const [refresh, setRefresh] = useState(0);
 
   useEffect(() => {
-    const fetchTasks = async () => {
+    const fetchAllTasks = async () => {
       try {
-        const data = await api.getTasksByType(1);
-        console.log('Fetched tasks:', data);
-        if (data) {
-          setTasks(data);
+        const tasks = [];
+        for (let type = 1; type <= 6; type++) {
+          const data = await api.getTasksByType(type);
+          if (data) {
+            tasks.push(...data);
+          }
         }
+        console.log('Fetched all tasks:', tasks);
+        setAllTasks(tasks);
       } catch (error) {
         console.error('Error fetching tasks:', error);
       }
     };
 
-    fetchTasks();
-  }, []);
+    fetchAllTasks();
+
+    const intervalId = setInterval(() => {
+      setRefresh(prev => prev + 1);
+    }, 30000);
+
+    return () => clearInterval(intervalId);
+  }, [refresh, currentMonth, currentYear]);
 
   const checkDateHasTask = (day) => {
-    if (!tasks.length) return false;
+    if (!allTasks.length) return false;
     const checkDate = new Date(currentYear, currentMonth, day);
-    return tasks.some(task => {
+    return allTasks.some(task => {
       const [startDateStr] = task.timeStart.split(' ');
       const [startDay, startMonth, startYear] = startDateStr.split('/').map(Number);
       const startDate = new Date(startYear, startMonth - 1, startDay);
@@ -40,9 +51,9 @@ const Calendar = () => {
   };
 
   const getTasksForDate = (day) => {
-    if (!tasks.length) return [];
+    if (!allTasks.length) return [];
     const selectedDate = new Date(currentYear, currentMonth, day);
-    return tasks.filter(task => {
+    return allTasks.filter(task => {
       const [startDateStr] = task.timeStart.split(' ');
       const [startDay, startMonth, startYear] = startDateStr.split('/').map(Number);
       const startDate = new Date(startYear, startMonth - 1, startDay);
