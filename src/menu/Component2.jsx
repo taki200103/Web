@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 import { Box, Typography, Dialog, DialogTitle, DialogContent, IconButton } from '@mui/material';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import Calendar from './Calendar'; // Giả sử bạn đã tạo Calendar component như trên , co the xoa menu di de ko loi
-
-// Lịch
+import Calendar from './Calendar';
 
 const Component2 = () => {
-  const [openDialog, setOpenDialog] = useState(false); // State để mở/đóng Dialog
+  const [openDialog, setOpenDialog] = useState(false);
 
   const handleDialogOpen = () => {
     setOpenDialog(true);
@@ -17,7 +15,7 @@ const Component2 = () => {
   };
 
   return (
-    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 3, p: 1 }}>
+    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 3, p: 5 }}>
       {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
         <Box
           key={day}
@@ -25,7 +23,7 @@ const Component2 = () => {
             display: 'flex',
             flexDirection: 'row',
             alignItems: 'center',
-            gap: 2.5,
+            gap: 3,
           }}
         >
           <Box
@@ -33,14 +31,16 @@ const Component2 = () => {
               width: 45,
               height: 45,
               borderRadius: '50%',
-              bgcolor: '#f5f5f5',
+              bgcolor: '#e0e0e0',
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
+              position: 'relative',
             }}
           >
             <Typography>{day}</Typography>
           </Box>
+
           {day === 'Sun' && (
             <Box
               sx={{
@@ -54,7 +54,7 @@ const Component2 = () => {
                 alignItems: 'center',
               }}
             >
-              <IconButton onClick={handleDialogOpen}>
+              <IconButton onClick={handleDialogOpen} sx={{ color: '#fff' }}>
                 <CalendarMonthIcon />
               </IconButton>
             </Box>
@@ -62,11 +62,10 @@ const Component2 = () => {
         </Box>
       ))}
 
-      {/* Hộp thoại hiển thị Calendar */}
       <Dialog open={openDialog} onClose={handleDialogClose} maxWidth="md" fullWidth>
         <DialogTitle>Chọn Ngày</DialogTitle>
         <DialogContent>
-          <Calendar /> {/* Thêm component Calendar của bạn vào đây */}
+          <Calendar />
         </DialogContent>
       </Dialog>
     </Box>
