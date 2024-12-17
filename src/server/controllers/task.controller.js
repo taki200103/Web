@@ -244,6 +244,12 @@ const TaskController = {
                 error: error.message
             });
         }
+    },
+
+    getTaskTypeName: (taskTypeId) => {
+        console.log('Task Type ID:', taskTypeId); // Log taskTypeId
+        const item = items.find(item => item.id === taskTypeId);
+        return item ? item.name : 'Unknown';
     }
 };
 

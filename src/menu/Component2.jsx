@@ -28,24 +28,24 @@ const Component2 = () => {
   const [openDayDialog, setOpenDayDialog] = useState(false);
 
   useEffect(() => {
-    const fetchTasks = async () => {
+    const fetchAllTasks = async () => {
       try {
         const tasks = [];
         for (let type = 1; type <= 6; type++) {
           const data = await api.getTasksByType(type);
           if (data) {
+            console.log('Fetched tasks for type', type, ':', data);
             tasks.push(...data);
           }
         }
-        console.log('Fetched tasks:', tasks);
         setCurrentWeekTasks(tasks);
       } catch (error) {
         console.error('Error fetching tasks:', error);
       }
     };
 
-    fetchTasks();
-    const intervalId = setInterval(fetchTasks, 30000);
+    fetchAllTasks();
+    const intervalId = setInterval(fetchAllTasks, 30000);
     return () => clearInterval(intervalId);
   }, []);
 

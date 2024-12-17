@@ -4,15 +4,6 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import api from '../utils/api';
 
-const taskTypeNames = {
-  1: 'Học Tập',
-  2: 'Công Việc',
-  3: 'Gia Đình',
-  4: 'Hàng Ngày',
-  5: 'Hàng Tháng',
-  6: 'Hàng Năm'
-};
-
 const Calendar = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().getDate());
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
@@ -199,7 +190,10 @@ const Calendar = () => {
                 {task.task_description}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                {taskTypeNames[task.task_type_id]} - {task.status}
+                - {task.status}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                {task.taskType}
               </Typography>
             </Paper>
           ))}
