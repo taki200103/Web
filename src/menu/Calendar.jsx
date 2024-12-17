@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Grid, Paper, IconButton } from '@mui/material';
-import { ChevronLeft, ChevronRight } from '@mui/icons-material';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import api from '../utils/api';
+
+const taskTypeNames = {
+  1: 'Học Tập',
+  2: 'Công Việc',
+  3: 'Gia Đình',
+  4: 'Hàng Ngày',
+  5: 'Hàng Tháng',
+  6: 'Hàng Năm'
+};
 
 const Calendar = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().getDate());
@@ -100,13 +110,13 @@ const Calendar = () => {
         marginBottom: 2
       }}>
         <IconButton onClick={() => handleMonthChange(-1)}>
-          <ChevronLeft />
+          <ChevronLeftIcon />
         </IconButton>
         <Typography variant="h6" align="center">
           {new Date(currentYear, currentMonth).toLocaleString('default', { month: 'long' })} {currentYear}
         </Typography>
         <IconButton onClick={() => handleMonthChange(1)}>
-          <ChevronRight />
+          <ChevronRightIcon />
         </IconButton>
       </Box>
 
@@ -173,7 +183,6 @@ const Calendar = () => {
                 mb: 2,
                 backgroundColor: '#f9f9f9',
                 borderRadius: '8px',
-                transition: 'transform 0.2s ease',
                 '&:hover': {
                   transform: 'translateY(-2px)',
                   boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
@@ -181,16 +190,16 @@ const Calendar = () => {
               }}
             >
               <Typography variant="subtitle1" fontWeight="bold" color="primary">
-                {task.task}
+                {task.task_uname}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                 {task.timeStart.split(' ')[1]} - {task.timeEnd.split(' ')[1]}
               </Typography>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {task.description}
+                {task.task_description}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                {task.taskType} - {task.status} - Tạo bởi: {task.createdBy}
+                {taskTypeNames[task.task_type_id]} - {task.status}
               </Typography>
             </Paper>
           ))}

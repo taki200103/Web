@@ -12,6 +12,15 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import Calendar from './Calendar';
 import api from '../utils/api';
 
+const taskTypeNames = {
+  1: 'Học Tập',
+  2: 'Công Việc',
+  3: 'Gia Đình',
+  4: 'Hàng Ngày',
+  5: 'Hàng Tháng',
+  6: 'Hàng Năm'
+};
+
 const Component2 = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [currentWeekTasks, setCurrentWeekTasks] = useState([]);
@@ -233,16 +242,16 @@ const Component2 = () => {
               }}
             >
               <Typography variant="subtitle1" fontWeight="bold" color="primary">
-                {task.task}
+                {task.task_uname}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                 {task.timeStart.split(' ')[1]} - {task.timeEnd.split(' ')[1]}
               </Typography>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                {task.description}
+                {task.task_description}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                {task.taskType} - {task.status} - Tạo bởi: {task.createdBy}
+                {taskTypeNames[task.task_type_id]} - {task.status}
               </Typography>
             </Paper>
           ))}

@@ -7,21 +7,24 @@ const UserTasksController = {
 
             const query = `
                 SELECT 
-                    ut.task_uid as id,
-                    ut.task_uname as task,
-                    ut.description,
+                    u.user_id, 
+                    u.user_name, 
+                    u.email, 
+                    ut.task_uname, 
+                    ut.description AS task_description, 
+                    ut.date_begin, 
+                    ut.date_end, 
                     ut.status,
-                    u.user_name as "createdBy",
                     TO_CHAR(ut.date_created, 'DD/MM/YYYY') || ' ' || 
                     TO_CHAR(ut.time_created, 'HH24:MI:SS') as "createdAt",
                     TO_CHAR(ut.date_begin, 'DD/MM/YYYY') || ' ' || 
                     TO_CHAR(ut.start_time, 'HH24:MI') as "timeStart",
                     TO_CHAR(ut.date_end, 'DD/MM/YYYY') || ' ' || 
-                    TO_CHAR(ut.end_time, 'HH24:MI') as "timeEnd",
-                    tt.task_type_name as "taskType"
-                FROM "Users" u
-                JOIN "User_Task" ut ON u.user_id = ut.user_id
-                JOIN "Task_Type" tt ON ut.task_type_id = tt.task_type_id
+                    TO_CHAR(ut.end_time, 'HH24:MI') as "timeEnd"
+                FROM 
+                    "Users" u
+                JOIN 
+                    "User_Task" ut ON u.user_id = ut.user_id
                 WHERE u.user_id = $1
                 ORDER BY ut.date_created DESC, ut.time_created DESC
             `;
@@ -41,20 +44,23 @@ const UserTasksController = {
 
             const query = `
                 SELECT 
-                    ut.task_uid as id,
-                    ut.task_uname as task,
-                    ut.description,
+                    u.user_id, 
+                    u.user_name, 
+                    u.email, 
+                    ut.task_uname, 
+                    ut.description AS task_description, 
+                    ut.date_begin, 
+                    ut.date_end, 
                     ut.status,
-                    u.user_name as "createdBy",
                     TO_CHAR(ut.date_begin, 'DD/MM/YYYY') || ' ' || 
                     TO_CHAR(ut.start_time, 'HH24:MI') as "timeStart",
                     TO_CHAR(ut.date_end, 'DD/MM/YYYY') || ' ' || 
-                    TO_CHAR(ut.end_time, 'HH24:MI') as "timeEnd",
-                    tt.task_type_name as "taskType"
-                FROM "Users" u
-                JOIN "User_Task" ut ON u.user_id = ut.user_id
-                JOIN "Task_Type" tt ON ut.task_type_id = tt.task_type_id
-                WHERE u.user_id = $1 AND tt.priority = $2
+                    TO_CHAR(ut.end_time, 'HH24:MI') as "timeEnd"
+                FROM 
+                    "Users" u
+                JOIN 
+                    "User_Task" ut ON u.user_id = ut.user_id
+                WHERE u.user_id = $1 AND ut.task_type_id = $2
                 ORDER BY ut.date_begin, ut.start_time
             `;
 
