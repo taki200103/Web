@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   TextField,
@@ -27,17 +27,24 @@ const Component4 = () => {
   const [error, setError] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  useEffect(() => {
-    if (searchTerm) {
-      handleSearch(searchTerm);
-    } else {
+  const fetchSuggestions = async (value) => {
+    if (!value.trim()) {
       setSearchResults([]);
+      return;
     }
-  }, [searchTerm]);
+
+    try {
+      const response = await api.searchTasks(value);
+      setSearchResults(response);
+      setShowSuggestions(true);
+    } catch (error) {
+      console.error('Fetch suggestions error:', error);
+    }
+  };
 
   const handleSearch = async (value) => {
     if (!value.trim()) {
-      setSearchResults([]);
+      setError('Vui lòng nhập từ khóa tìm kiếm.');
       return;
     }
 
@@ -45,8 +52,8 @@ const Component4 = () => {
       setLoading(true);
       const response = await api.searchTasks(value);
       if (response.length > 0) {
-        setSearchResults(response);
-        setShowSuggestions(true);
+        setSelectedTask(response[0]);
+        setOpenDialog(true);
       } else {
         setError('Không tìm thấy công việc nào.');
       }
@@ -55,6 +62,12 @@ const Component4 = () => {
       setError('Có lỗi xảy ra khi tìm kiếm.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleKeyPress = (event) => {
+    if (event.key === 'Enter') {
+      handleSearch(searchTerm);
     }
   };
 
@@ -90,9 +103,13 @@ const Component4 = () => {
       }}>
         <TextField
           variant="outlined"
-          placeholder="Tìm kiếm công việc..."
+          placeholder="Tìm kiếm công việc hoặc ID..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            fetchSuggestions(e.target.value);
+          }}
+          onKeyPress={handleKeyPress}
           sx={{
             width: '65%',
             '& .MuiOutlinedInput-root': {
@@ -127,7 +144,7 @@ const Component4 = () => {
                 onClick={() => handleTaskClick(task)}
               >
                 <ListItemText 
-                  primary={task.task} 
+                  primary={`${task.task} (ID: ${task.id})`} 
                   secondary={`${task.taskType} - ${task.timeStart}`} 
                 />
               </ListItem>
@@ -161,7 +178,7 @@ const Component4 = () => {
                 </Typography>
                 
                 <Typography variant="body1" gutterBottom>
-                  <strong>Thời gian kết thúc:</strong> {selectedTask.timeEnd}
+                  <strong>Th���i gian kết thúc:</strong> {selectedTask.timeEnd}
                 </Typography>
                 
                 <Typography variant="body1" gutterBottom>
@@ -181,7 +198,13 @@ const Component4 = () => {
           </DialogActions>
         </Dialog>
 
-        <Snackbar open={!!error} autoHideDuration={6000} onClose={handleCloseError}>
+        <Snackbar 
+          open={!!error} 
+          autoHideDuration={6000} 
+          onClose={handleCloseError}
+          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+          sx={{ mt: 13, mr: 10 }}
+        >
           <Alert onClose={handleCloseError} severity="error" sx={{ width: '100%' }}>
             {error}
           </Alert>
