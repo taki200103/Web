@@ -28,11 +28,17 @@ const searchTasks = async (userId, searchTerm) => {
     JOIN "Users" u ON ut.user_id = u.user_id
     JOIN "Task_Type" tt ON ut.task_type_id = tt.task_type_id
     WHERE ut.user_id = $1 
-    AND LOWER(ut.task_uname) LIKE LOWER($2)
+    AND (
+      LOWER(ut.task_uname) LIKE LOWER($2)
+      OR POSITION($3 IN ut.task_uid) > 0
+    )
     ORDER BY ut.date_created DESC, ut.time_created DESC
   `;
 
-  const result = await pool.query(query, [userId, `%${searchTerm}%`]);
+  const searchPattern = `%${searchTerm}%`;
+  const searchId = searchTerm.toLowerCase();
+  
+  const result = await pool.query(query, [userId, searchPattern, searchId]);
   return result.rows;
 };
 

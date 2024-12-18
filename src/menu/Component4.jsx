@@ -14,7 +14,9 @@ import {
   DialogContent,
   DialogActions,
   Button,
-  Typography
+  Typography,
+  ToggleButtonGroup,
+  ToggleButton
 } from '@mui/material';
 import api from '../utils/api';
 
@@ -26,15 +28,25 @@ const Component4 = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [error, setError] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchType, setSearchType] = useState('name'); // 'name' or 'id'
 
-  const fetchSuggestions = async (value) => {
+  const handleSearchTypeChange = (event, newType) => {
+    if (newType !== null) {
+      setSearchType(newType);
+      if (searchTerm) {
+        fetchSuggestions(searchTerm, newType);
+      }
+    }
+  };
+
+  const fetchSuggestions = async (value, type = searchType) => {
     if (!value.trim()) {
       setSearchResults([]);
       return;
     }
 
     try {
-      const response = await api.searchTasks(value);
+      const response = await api.searchTasks(value, type);
       setSearchResults(response);
       setShowSuggestions(true);
     } catch (error) {
@@ -50,7 +62,7 @@ const Component4 = () => {
 
     try {
       setLoading(true);
-      const response = await api.searchTasks(value);
+      const response = await api.searchTasks(value, searchType);
       if (response.length > 0) {
         setSelectedTask(response[0]);
         setOpenDialog(true);
@@ -103,7 +115,7 @@ const Component4 = () => {
       }}>
         <TextField
           variant="outlined"
-          placeholder="Tìm kiếm công việc hoặc ID..."
+          placeholder="Nhập tên hoặc ID công việc..."
           value={searchTerm}
           onChange={(e) => {
             setSearchTerm(e.target.value);
@@ -178,7 +190,7 @@ const Component4 = () => {
                 </Typography>
                 
                 <Typography variant="body1" gutterBottom>
-                  <strong>Th���i gian kết thúc:</strong> {selectedTask.timeEnd}
+                  <strong>Thời gian kết thúc:</strong> {selectedTask.timeEnd}
                 </Typography>
                 
                 <Typography variant="body1" gutterBottom>
