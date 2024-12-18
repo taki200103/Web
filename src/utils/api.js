@@ -41,4 +41,16 @@ api.getAllTasks = async () => {
   }
 };
 
+api.searchTasks = async (searchTerm) => {
+  try {
+    const response = await api.get(`/tasks/search`, {
+      params: { searchTerm }
+    });
+    return response.data.tasks;
+  } catch (error) {
+    console.error('Error searching tasks:', error);
+    throw error;
+  }
+};
+
 export default api; 
