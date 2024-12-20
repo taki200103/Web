@@ -120,6 +120,7 @@ const GroupController = {
                     JOIN "Users" u ON gm.user_id = u.user_id
                     WHERE gm.group_id = $1 
                     AND gm.role = 'leader'
+                    AND gm.request = 'accepted'
                 )
                 SELECT 
                     g.group_id,
@@ -132,6 +133,7 @@ const GroupController = {
                         SELECT CAST(COUNT(*) AS INTEGER)
                         FROM "Group_Member" 
                         WHERE group_id = $1
+                        AND request = 'accepted'
                     ) as total_members
                 FROM "Group" g
                 CROSS JOIN leader_info l
@@ -146,9 +148,6 @@ const GroupController = {
                     message: "Không tìm thấy thông tin nhóm!"
                 });
             }
-
-            // Log để debug
-            console.log('Group details:', result.rows[0]);
 
             res.status(200).json({
                 success: true,
