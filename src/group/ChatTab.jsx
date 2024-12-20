@@ -4,41 +4,67 @@ import {
   TextField, 
   IconButton, 
   Typography,
-  Avatar
+  Avatar,
+  CircularProgress
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
+import api from '../utils/api';
 
 const ChatTab = ({ groupId }) => {
-  const [messages, setMessages] = useState([
-    { id: 1, text: "Hello everyone!", sender: "John Doe", timestamp: "10:00 AM", isSelf: false },
-    { id: 2, text: "Hi John! How are you?", sender: "You", timestamp: "10:01 AM", isSelf: true },
-    { id: 3, text: "I'm doing great, thanks for asking!", sender: "John Doe", timestamp: "10:02 AM", isSelf: false },
-  ]);
+  const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const fetchMessages = async () => {
+    try {
+      const response = await api.get(`/chat/group/${groupId}`);
+      setMessages(response.data.messages);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMessages();
+    // Polling every 5 seconds
+    const interval = setInterval(fetchMessages, 5000);
+    return () => clearInterval(interval);
+  }, [groupId]);
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  const handleSendMessage = (e) => {
+  const handleSendMessage = async (e) => {
     e.preventDefault();
     if (newMessage.trim()) {
-      const newMsg = {
-        id: messages.length + 1,
-        text: newMessage,
-        sender: 'You',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isSelf: true
-      };
-      setMessages([...messages, newMsg]);
-      setNewMessage('');
+      try {
+        const response = await api.post(`/chat/group/${groupId}`, {
+          text: newMessage
+        });
+        
+        setMessages(prev => [...prev, response.data.message]);
+        setNewMessage('');
+      } catch (error) {
+        console.error('Error sending message:', error);
+      }
     }
   };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box 

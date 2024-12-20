@@ -21,12 +21,14 @@ const userRoutes = require('./routes/user.routes');
 const taskRoutes = require('./routes/task.routes');
 const groupRoutes = require('./routes/group.routes');
 const userTasksRoutes = require('./routes/userTasks.routes');
+const chatRoutes = require('./routes/chat.routes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/tasks', userTasksRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Test database connection
 pool.query('SELECT NOW()', (err, res) => {
