@@ -808,6 +808,75 @@ const GroupController = {
                 error: error.message
             });
         }
+    },
+
+    deleteGroup: async (req, res) => {
+        try {
+            const { groupId } = req.params;
+            const leader_id = req.user.user_id;
+
+            // Bắt đầu transaction
+            await pool.query('BEGIN');
+
+            try {
+                // Kiểm tra quyền leader
+                const checkLeaderQuery = `
+                    SELECT * FROM "Group_Member"
+                    WHERE group_id = $1 AND user_id = $2 AND role = 'leader'
+                `;
+                const leaderResult = await pool.query(checkLeaderQuery, [groupId, leader_id]);
+                
+                if (leaderResult.rows.length === 0) {
+                    await pool.query('ROLLBACK');
+                    return res.status(403).json({
+                        success: false,
+                        message: "Chỉ leader mới có quyền xóa nhóm!"
+                    });
+                }
+
+                // Xóa theo thứ tự
+                // 1. Xóa Group_Task
+                await pool.query('DELETE FROM "Group_Task" WHERE group_id = $1', [groupId]);
+                
+                // 2. Xóa Group_Member
+                await pool.query('DELETE FROM "Group_Member" WHERE group_id = $1', [groupId]);
+                
+                // 3. Cuối cùng xóa Group
+                const deleteGroupQuery = `
+                    DELETE FROM "Group"
+                    WHERE group_id = $1
+                    RETURNING *
+                `;
+                const result = await pool.query(deleteGroupQuery, [groupId]);
+
+                if (result.rows.length === 0) {
+                    await pool.query('ROLLBACK');
+                    return res.status(404).json({
+                        success: false,
+                        message: "Không tìm thấy nhóm!"
+                    });
+                }
+
+                await pool.query('COMMIT');
+
+                res.status(200).json({
+                    success: true,
+                    message: "Xóa nhóm thành công!"
+                });
+
+            } catch (error) {
+                await pool.query('ROLLBACK');
+                throw error;
+            }
+
+        } catch (error) {
+            console.error('Delete group error:', error);
+            res.status(500).json({
+                success: false,
+                message: "Lỗi khi xóa nhóm!",
+                error: error.message
+            });
+        }
     }
 };
 

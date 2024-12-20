@@ -16,5 +16,6 @@ router.get('/:groupId/requests', verifyToken, GroupController.getGroupRequests);
 router.post('/:groupId/join', verifyToken, GroupController.requestJoinGroup);
 router.put('/:groupId/requests/:userId', verifyToken, GroupController.handleJoinRequest);
 router.put('/:groupId/tasks/:taskId', verifyToken, GroupController.updateGroupTask);
+router.delete('/:groupId', verifyToken, GroupController.deleteGroup);
 
 module.exports = router; 
