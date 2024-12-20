@@ -32,18 +32,18 @@ const GroupController = {
                 description
             ]);
 
-            // Thêm leader vào nhóm
+            // Thêm leader vào nhóm với request = 'accepted'
             const addLeaderQuery = `
-                INSERT INTO "Group_Member" (user_id, group_id, role)
-                VALUES ($1, $2, 'leader')
+                INSERT INTO "Group_Member" (user_id, group_id, role, request)
+                VALUES ($1, $2, 'leader', 'accepted')
             `;
             await pool.query(addLeaderQuery, [leader_id, group_id]);
 
-            // Thêm các thành viên vào nhóm
+            // Thêm các thành viên vào nhóm với request = 'accepted'
             if (members && members.length > 0) {
                 const addMembersQuery = `
-                    INSERT INTO "Group_Member" (user_id, group_id, role)
-                    VALUES ($1, $2, 'member')
+                    INSERT INTO "Group_Member" (user_id, group_id, role, request)
+                    VALUES ($1, $2, 'member', 'accepted')
                 `;
                 for (const member_id of members) {
                     // Kiểm tra user tồn tại
@@ -179,7 +179,7 @@ const GroupController = {
             const roleResult = await pool.query(checkRoleQuery, [groupId, user_id]);
             const isLeader = roleResult.rows[0]?.role === 'leader';
 
-            // Lấy danh sách thành viên
+            // Lấy danh sách thành viên chỉ những người đã được chấp nhận
             const query = `
                 SELECT 
                     u.user_id,
@@ -189,8 +189,12 @@ const GroupController = {
                     gm.time_join
                 FROM "Group_Member" gm
                 JOIN "Users" u ON gm.user_id = u.user_id
-                WHERE gm.group_id = $1
-                ORDER BY gm.date_join DESC, gm.time_join DESC
+                WHERE gm.group_id = $1 
+                AND gm.request = 'accepted'
+                ORDER BY 
+                    CASE WHEN gm.role = 'leader' THEN 0 ELSE 1 END,
+                    gm.date_join DESC, 
+                    gm.time_join DESC
             `;
 
             const result = await pool.query(query, [groupId]);
@@ -243,10 +247,24 @@ const GroupController = {
                 });
             }
 
-            // Thêm thành viên mới
+            // Kiểm tra user đã trong nhóm chưa
+            const checkMemberQuery = `
+                SELECT * FROM "Group_Member" 
+                WHERE group_id = $1 AND user_id = $2
+            `;
+            const memberExists = await pool.query(checkMemberQuery, [groupId, userId]);
+
+            if (memberExists.rows.length > 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Thành viên đã ở trong nhóm!"
+                });
+            }
+
+            // Thêm thành viên mới với trạng thái accepted
             const addMemberQuery = `
-                INSERT INTO "Group_Member" (user_id, group_id, role)
-                VALUES ($1, $2, 'member')
+                INSERT INTO "Group_Member" (user_id, group_id, role, request)
+                VALUES ($1, $2, 'member', 'accepted')
                 RETURNING *
             `;
             await pool.query(addMemberQuery, [userId, groupId]);
