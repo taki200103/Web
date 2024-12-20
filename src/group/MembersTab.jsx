@@ -211,6 +211,7 @@ const MembersTab = ({ groupId }) => {
             <Table>
               <TableHead>
                 <TableRow>
+                  <TableCell>User ID</TableCell>
                   <TableCell>Tên thành viên</TableCell>
                   <TableCell>Vai trò</TableCell>
                   <TableCell>Ngày tham gia</TableCell>
@@ -220,6 +221,7 @@ const MembersTab = ({ groupId }) => {
               <TableBody>
                 {members.map((member) => (
                   <TableRow key={member.user_id}>
+                    <TableCell>{member.user_id}</TableCell>
                     <TableCell>{member.user_name}</TableCell>
                     <TableCell>
                       {member.role === 'leader' ? 'Trưởng nhóm' : 'Thành viên'}
@@ -245,7 +247,7 @@ const MembersTab = ({ groupId }) => {
                 ))}
                 {members.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={isLeader ? 4 : 3} align="center">
+                    <TableCell colSpan={isLeader ? 5 : 4} align="center">
                       Chưa có thành viên nào
                     </TableCell>
                   </TableRow>
@@ -265,6 +267,7 @@ const MembersTab = ({ groupId }) => {
             <Table>
               <TableHead>
                 <TableRow>
+                  <TableCell>User ID</TableCell>
                   <TableCell>Tên</TableCell>
                   <TableCell>Ngày yêu cầu</TableCell>
                   <TableCell align="right">Thao tác</TableCell>
@@ -273,6 +276,7 @@ const MembersTab = ({ groupId }) => {
               <TableBody>
                 {requests.map((request) => (
                   <TableRow key={request.user_id}>
+                    <TableCell>{request.user_id}</TableCell>
                     <TableCell>{request.user_name}</TableCell>
                     <TableCell>
                       {new Date(request.date_join).toLocaleDateString('vi-VN')}
@@ -300,7 +304,7 @@ const MembersTab = ({ groupId }) => {
                 ))}
                 {requests.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={3} align="center">
+                    <TableCell colSpan={4} align="center">
                       Không có yêu cầu tham gia nào
                     </TableCell>
                   </TableRow>

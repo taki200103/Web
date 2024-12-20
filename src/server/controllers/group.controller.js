@@ -289,8 +289,6 @@ const GroupController = {
             const { groupId, memberId } = req.params;
             const leader_id = req.user.user_id;
 
-            console.log('Delete request:', { groupId, memberId, leader_id });
-
             // Bắt đầu transaction
             await pool.query('BEGIN');
 
@@ -301,7 +299,6 @@ const GroupController = {
                     WHERE group_id = $1 AND user_id = $2
                 `;
                 const leaderResult = await pool.query(checkLeaderQuery, [groupId, leader_id]);
-                console.log('Leader check result:', leaderResult.rows);
 
                 if (leaderResult.rows.length === 0 || leaderResult.rows[0].role !== 'leader') {
                     await pool.query('ROLLBACK');
@@ -317,7 +314,6 @@ const GroupController = {
                     WHERE group_id = $1 AND user_id = $2
                 `;
                 const memberResult = await pool.query(checkMemberQuery, [groupId, memberId]);
-                console.log('Member check result:', memberResult.rows);
 
                 if (memberResult.rows.length === 0) {
                     await pool.query('ROLLBACK');
@@ -336,43 +332,43 @@ const GroupController = {
                     });
                 }
 
-                // Xóa thành viên từ Group_Member
+                // Kiểm tra các task của thành viên trước khi xóa
+                const checkTasksQuery = `
+                    SELECT task_id FROM "Group_Task"
+                    WHERE group_id = $1 AND user_id = $2
+                `;
+                const tasksResult = await pool.query(checkTasksQuery, [groupId, memberId]);
+                console.log('Tasks to delete:', tasksResult.rows);
+
+                // 1. Xóa tất cả task của thành viên trong nhóm
+                const deleteTasksQuery = `
+                    DELETE FROM "Group_Task"
+                    WHERE group_id = $1 AND user_id = $2
+                    RETURNING *
+                `;
+                const deletedTasks = await pool.query(deleteTasksQuery, [groupId, memberId]);
+                console.log('Deleted tasks:', deletedTasks.rows);
+
+                // 2. Xóa thành viên khỏi nhóm
                 const deleteMemberQuery = `
                     DELETE FROM "Group_Member"
                     WHERE group_id = $1 AND user_id = $2
+                    RETURNING *
                 `;
-                await pool.query(deleteMemberQuery, [groupId, memberId]);
+                const deletedMember = await pool.query(deleteMemberQuery, [groupId, memberId]);
+                console.log('Deleted member:', deletedMember.rows);
 
-                // Kiểm tra xem còn thành viên nào trong nhóm không
-                const countMembersQuery = `
-                    SELECT COUNT(*) as member_count
-                    FROM "Group_Member"
-                    WHERE group_id = $1
-                `;
-                const countResult = await pool.query(countMembersQuery, [groupId]);
-                const memberCount = parseInt(countResult.rows[0].member_count);
-
-                // Nếu không còn thành viên nào, xóa luôn nhóm
-                if (memberCount === 0) {
-                    const deleteGroupQuery = `
-                        DELETE FROM "Group"
-                        WHERE group_id = $1
-                    `;
-                    await pool.query(deleteGroupQuery, [groupId]);
-                }
-
-                // Commit transaction
                 await pool.query('COMMIT');
 
                 res.status(200).json({
                     success: true,
-                    message: memberCount === 0 
-                        ? "Đã xóa thành viên và giải tán nhóm!"
-                        : "Xóa thành viên thành công!"
+                    message: "Xóa thành viên và các công việc của thành viên thành công!",
+                    deletedTasks: deletedTasks.rows.length,
+                    deletedMember: deletedMember.rows[0]
                 });
 
             } catch (error) {
-                // Rollback nếu có lỗi
+                console.error('Transaction error:', error);
                 await pool.query('ROLLBACK');
                 throw error;
             }
