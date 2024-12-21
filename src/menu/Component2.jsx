@@ -1,47 +1,159 @@
-import React, { useState } from 'react';
-import { Box, Typography, Dialog, DialogTitle, DialogContent, IconButton } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { 
+  Box, 
+  Typography, 
+  Dialog, 
+  DialogTitle, 
+  DialogContent, 
+  IconButton,
+  Paper 
+} from '@mui/material';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import Calendar from './Calendar'; // Giả sử bạn đã tạo Calendar component như trên , co the xoa menu di de ko loi
+import Calendar from './Calendar';
+import api from '../utils/api';
 
-// Lịch
+const taskTypeNames = {
+  1: 'Học Tập',
+  2: 'Công Việc',
+  3: 'Gia Đình',
+  4: 'Hàng Ngày',
+  5: 'Hàng Tháng',
+  6: 'Hàng Năm'
+};
 
 const Component2 = () => {
-  const [openDialog, setOpenDialog] = useState(false); // State để mở/đóng Dialog
+  const [openDialog, setOpenDialog] = useState(false);
+  const [currentWeekTasks, setCurrentWeekTasks] = useState([]);
+  const [selectedDay, setSelectedDay] = useState(null);
+  const [openDayDialog, setOpenDayDialog] = useState(false);
 
-  const handleDialogOpen = () => {
-    setOpenDialog(true);
+  useEffect(() => {
+    const fetchAllTasks = async () => {
+      try {
+        const tasks = [];
+        for (let type = 1; type <= 6; type++) {
+          const data = await api.getTasksByType(type);
+          if (data) {
+            console.log('Fetched tasks for type', type, ':', data);
+            tasks.push(...data);
+          }
+        }
+        setCurrentWeekTasks(tasks);
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+      }
+    };
+
+    fetchAllTasks();
+    const intervalId = setInterval(fetchAllTasks, 30000);
+    return () => clearInterval(intervalId);
+  }, []);
+
+  const getCurrentWeekDates = () => {
+    const now = new Date();
+    const currentDay = now.getDay();
+    const diff = currentDay === 0 ? -6 : 1 - currentDay;
+    
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + diff);
+
+    const weekDays = [];
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + i);
+      weekDays.push({
+        name: days[i],
+        date: date,
+        isToday: date.toDateString() === now.toDateString()
+      });
+    }
+
+    return weekDays;
   };
 
-  const handleDialogClose = () => {
-    setOpenDialog(false);
+  const checkDateHasTask = (date) => {
+    return currentWeekTasks.some(task => {
+      const [startDateStr] = task.timeStart.split(' ');
+      const [startDay, startMonth, startYear] = startDateStr.split('/').map(Number);
+      const startDate = new Date(startYear, startMonth - 1, startDay);
+      
+      const [endDateStr] = task.timeEnd.split(' ');
+      const [endDay, endMonth, endYear] = endDateStr.split('/').map(Number);
+      const endDate = new Date(endYear, endMonth - 1, endDay);
+
+      const checkDate = new Date(date);
+      checkDate.setHours(0, 0, 0, 0);
+      return checkDate >= startDate && checkDate <= endDate;
+    });
   };
+
+  const getTasksForDate = (date) => {
+    return currentWeekTasks.filter(task => {
+      const [startDateStr] = task.timeStart.split(' ');
+      const [startDay, startMonth, startYear] = startDateStr.split('/').map(Number);
+      const startDate = new Date(startYear, startMonth - 1, startDay);
+      
+      const [endDateStr] = task.timeEnd.split(' ');
+      const [endDay, endMonth, endYear] = endDateStr.split('/').map(Number);
+      const endDate = new Date(endYear, endMonth - 1, endDay);
+
+      const checkDate = new Date(date);
+      checkDate.setHours(0, 0, 0, 0);
+      return checkDate >= startDate && checkDate <= endDate;
+    });
+  };
+
+  const handleDayClick = (day) => {
+    setSelectedDay(day);
+    setOpenDayDialog(true);
+  };
+
+  const handleDayDialogClose = () => {
+    setOpenDayDialog(false);
+    setSelectedDay(null);
+  };
+
+  const weekDays = getCurrentWeekDates();
 
   return (
-    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 3, p: 1 }}>
-      {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 3, p: 5 }}>
+      {weekDays.map((day) => (
         <Box
-          key={day}
+          key={day.name}
           sx={{
             display: 'flex',
             flexDirection: 'row',
             alignItems: 'center',
-            gap: 2.5,
+            gap: 3,
           }}
         >
           <Box
+            onClick={() => handleDayClick(day)}
             sx={{
               width: 45,
               height: 45,
               borderRadius: '50%',
-              bgcolor: '#f5f5f5',
+              bgcolor: checkDateHasTask(day.date) ? '#1976d2' : 
+                      day.isToday ? '#f57c00' : '#e0e0e0',
+              color: (checkDateHasTask(day.date) || day.isToday) ? '#fff' : '#000',
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
+              position: 'relative',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                transform: 'scale(1.1)',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+              }
             }}
           >
-            <Typography>{day}</Typography>
+            <Typography>{day.name}</Typography>
           </Box>
-          {day === 'Sun' && (
+
+          {day.name === 'Sun' && (
             <Box
               sx={{
                 width: 38,
@@ -54,7 +166,10 @@ const Component2 = () => {
                 alignItems: 'center',
               }}
             >
-              <IconButton onClick={handleDialogOpen}>
+              <IconButton 
+                onClick={() => setOpenDialog(true)} 
+                sx={{ color: '#fff' }}
+              >
                 <CalendarMonthIcon />
               </IconButton>
             </Box>
@@ -62,11 +177,89 @@ const Component2 = () => {
         </Box>
       ))}
 
-      {/* Hộp thoại hiển thị Calendar */}
-      <Dialog open={openDialog} onClose={handleDialogClose} maxWidth="md" fullWidth>
-        <DialogTitle>Chọn Ngày</DialogTitle>
-        <DialogContent>
-          <Calendar /> {/* Thêm component Calendar của bạn vào đây */}
+      {/* Dialog cho lịch đầy đủ */}
+      <Dialog 
+        open={openDialog} 
+        onClose={() => setOpenDialog(false)}
+        PaperProps={{
+          sx: {
+            width: '700px',
+            height: '700px',
+            maxWidth: '90vw',
+            maxHeight: '90vh'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          borderBottom: '1px solid #e0e0e0',
+          backgroundColor: '#f5f5f5',
+          padding: '16px 24px'
+        }}>
+          Lịch Công Việc
+        </DialogTitle>
+        <DialogContent sx={{ padding: '25px', overflow: 'auto' }}>
+          <Calendar />
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog cho ngày được chọn */}
+      <Dialog 
+        open={openDayDialog} 
+        onClose={handleDayDialogClose}
+        PaperProps={{
+          sx: {
+            width: '500px',
+            maxWidth: '90vw',
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          borderBottom: '1px solid #e0e0e0',
+          backgroundColor: '#f5f5f5',
+          padding: '16px 24px'
+        }}>
+          {selectedDay && `Công việc ${selectedDay.date.toLocaleDateString('vi-VN', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          })}`}
+        </DialogTitle>
+        <DialogContent sx={{ padding: '25px' }}>
+          {selectedDay && getTasksForDate(selectedDay.date).map((task, index) => (
+            <Paper
+              key={index}
+              elevation={2}
+              sx={{
+                p: 2,
+                mb: 2,
+                backgroundColor: '#f9f9f9',
+                borderRadius: '8px',
+                '&:hover': {
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+                }
+              }}
+            >
+              <Typography variant="subtitle1" fontWeight="bold" color="primary">
+                {task.task_uname}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                {task.timeStart.split(' ')[1]} - {task.timeEnd.split(' ')[1]}
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                {task.task_description}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {taskTypeNames[task.task_type_id]} - {task.status}
+              </Typography>
+            </Paper>
+          ))}
+          {selectedDay && getTasksForDate(selectedDay.date).length === 0 && (
+            <Typography color="text.secondary" align="center">
+              Không có công việc nào.
+            </Typography>
+          )}
         </DialogContent>
       </Dialog>
     </Box>

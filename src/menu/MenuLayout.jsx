@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Avatar, IconButton } from '@mui/material';
+import { 
+  Box, 
+  Avatar, 
+  IconButton
+} from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import { useNavigate } from 'react-router-dom';
-import api from '../utils/api';
 import Component1 from './Component1';
 import Component2 from './Component2';
 import Component3 from './Component3';
@@ -65,13 +68,14 @@ const MenuLayout = ({ onLogout }) => {
           }}
         />
 
+        <Component4 />
+
         <Box sx={{
           width: '100%',
           maxWidth: '1000px',
           margin: '0 auto',
         }}>
           <Component2 />
-          <Component4 />
           <Component3 />
         </Box>
       </Box>
@@ -113,10 +117,7 @@ const MenuLayout = ({ onLogout }) => {
           <Avatar
             alt="User Avatar"
             src="/path/to/avatar.jpg"
-            sx={{ 
-              width: 57, 
-              height: 57 
-            }}
+            sx={{ width: 57, height: 57 }}
           />
         </IconButton>
       </Box>

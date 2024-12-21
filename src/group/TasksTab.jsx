@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Table,
   TableHead,
@@ -16,65 +16,144 @@ import {
   DialogActions,
   Typography,
 } from "@mui/material";
-import GroupSubmit from "./group_submit"; // Nếu TasksTab.jsx nằm trong thư mục group
+import GroupSubmit from "./group_submit";
+import axios from 'axios';
 
-const TaskTab = () => {
-  const [tasks, setTasks] = useState([
-    {
-      id: 1,
-      task: "Project 1 (Chung) - HK 2024.1",
-      status: "RUNNING",
-      createdBy: "admin",
-      createdAt: "2024-09-22 07:33:10",
-      timeStart: "2024-09-22 08:00:00",
-      timeEnd: "2024-09-22 16:00:00",
-      description: "This is the first project.",
-      assignTo: "Member1", // Thêm trường assignTo
-    },
-    {
-      id: 2,
-      task: "C_BASIC_STACK",
-      status: "COMPLETED",
-      createdBy: "tung.nguyenviet",
-      createdAt: "2023-10-26 05:56:49",
-      timeStart: "2023-10-26 06:00:00",
-      timeEnd: "2023-10-26 18:00:00",
-      description: "Basic stack implementation.",
-      assignTo: "Member2", // Thêm trường assignTo
-    },
-  ]);
-
+const TaskTab = ({ groupId }) => {
+  const [tasks, setTasks] = useState([]);
   const [selectedTasks, setSelectedTasks] = useState([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(7);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
-  const [openGroupSubmit, setOpenGroupSubmit] = useState(false); // Thêm state để mở GroupSubmit
+  const [openGroupSubmit, setOpenGroupSubmit] = useState(false);
+  const [isLeader, setIsLeader] = useState(false);
+  const [editTask, setEditTask] = useState(null);
 
-  const handleToggleSelect = (id) => {
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        const response = await axios.get(
+          `http://localhost:3000/api/groups/${groupId}/tasks`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }
+        );
+        setTasks(response.data.tasks);
+        setIsLeader(response.data.isLeader);
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+      }
+    };
+
+    if (groupId) {
+      fetchTasks();
+    }
+  }, [groupId]);
+
+  const handleToggleSelect = (taskId) => {
+    if (!isLeader) return;
     setSelectedTasks((prevSelected) =>
-      prevSelected.includes(id)
-        ? prevSelected.filter((taskId) => taskId !== id)
-        : [...prevSelected, id]
+      prevSelected.includes(taskId)
+        ? prevSelected.filter((id) => id !== taskId)
+        : [...prevSelected, taskId]
     );
   };
 
-  const handleDelete = () => {
-    setTasks((prevTasks) => prevTasks.filter((task) => !selectedTasks.includes(task.id)));
-    setSelectedTasks([]);
+  const handleDelete = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      await axios.delete(
+        `http://localhost:3000/api/groups/${groupId}/tasks`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          data: {
+            taskIds: selectedTasks
+          }
+        }
+      );
+
+      setTasks(prevTasks => prevTasks.filter(task => !selectedTasks.includes(task.task_id)));
+      setSelectedTasks([]);
+      alert('Xóa công việc thành công!');
+    } catch (error) {
+      console.error('Error deleting tasks:', error);
+      alert(error.response?.data?.message || 'Có lỗi xảy ra khi xóa công việc!');
+    }
   };
 
-  const handleAdd = () => {
-    setOpenGroupSubmit(true); // Mở GroupSubmit dialog để thêm mới
+  const handleSubmitNewTask = async (formData) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await axios.post(
+        `http://localhost:3000/api/groups/${groupId}/tasks`,
+        {
+          taskName: formData.taskName,
+          description: formData.description,
+          dateBegin: formData.dateBegin,
+          dateEnd: formData.dateEnd,
+          timeBegin: formData.timeBegin,
+          timeEnd: formData.timeEnd,
+          userId: formData.memberId
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      setTasks(prev => [...prev, response.data.task]);
+      setOpenGroupSubmit(false);
+      alert('Thêm công việc thành công!');
+    } catch (error) {
+      console.error('Error adding task:', error);
+      alert(error.response?.data?.message || 'Có lỗi xảy ra khi thêm công việc!');
+    }
   };
 
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
-  };
+  const handleEditTask = async (formData) => {
+    try {
+        if (!editTask?.task_id) {
+            throw new Error('Không tìm thấy task_id');
+        }
 
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
+        const token = localStorage.getItem('authToken');
+        const response = await axios.put(
+            `http://localhost:3000/api/groups/${groupId}/tasks/${editTask.task_id}`,
+            {
+                taskName: formData.taskName,
+                description: formData.description,
+                dateBegin: formData.dateBegin,
+                dateEnd: formData.dateEnd,
+                timeBegin: formData.timeBegin,
+                timeEnd: formData.timeEnd,
+                userId: formData.memberId
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            }
+        );
+
+        if (response.data.success) {
+            setTasks(prev => prev.map(task => 
+                task.task_id === editTask.task_id ? response.data.task : task
+            ));
+            setEditTask(null);
+            setOpenGroupSubmit(false);
+            alert('Cập nhật công việc thành công!');
+        }
+    } catch (error) {
+        console.error('Error updating task:', error);
+        alert(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật công việc!');
+    }
   };
 
   const handleOpenDialog = (task) => {
@@ -87,23 +166,16 @@ const TaskTab = () => {
     setSelectedTask(null);
   };
 
-  const handleCloseGroupSubmit = () => {
-    setOpenGroupSubmit(false);
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
   };
 
-  const handleSubmitNewTask = (newTaskData) => {
-    const newTask = {
-      id: tasks.length + 1,
-      task: newTaskData.taskName,
-      status: "PENDING",
-      createdBy: "admin",
-      createdAt: new Date().toISOString().slice(0, 19).replace("T", " "),
-      timeStart: `${newTaskData.dateBegin} ${newTaskData.timeBegin}`,
-      timeEnd: `${newTaskData.dateEnd} ${newTaskData.timeEnd}`,
-      description: newTaskData.description,
-      assignTo: newTaskData.memberId, // Gán assignTo từ GroupSubmit
-    };
-    setTasks((prevTasks) => [...prevTasks, newTask]);
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const handleCloseGroupSubmit = () => {
     setOpenGroupSubmit(false);
   };
 
@@ -113,34 +185,35 @@ const TaskTab = () => {
     <TableContainer component={Paper} style={{ marginTop: "20px", maxWidth: "90%", margin: "auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "20px 0" }}>
         <h2 style={{ textAlign: "center", flex: 1 }}>Danh Sách Công Việc</h2>
-        <div>
-          <Button
-            variant="contained"
-            color="primary"
-            style={{ marginRight: "10px" }}
-            onClick={handleAdd}
-          >
-            +
-          </Button>
-          <Button
-            variant="contained"
-            color="secondary"
-            onClick={handleDelete}
-            disabled={selectedTasks.length === 0}
-          >
-            -
-          </Button>
-        </div>
+        {isLeader && (
+          <div>
+            <Button
+              variant="contained"
+              color="primary"
+              style={{ marginRight: "10px" }}
+              onClick={() => setOpenGroupSubmit(true)}
+            >
+              +
+            </Button>
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={handleDelete}
+              disabled={selectedTasks.length === 0}
+            >
+              -
+            </Button>
+          </div>
+        )}
       </div>
 
       <Table>
         <TableHead>
           <TableRow>
-            <TableCell />
+            {isLeader && <TableCell />}
             <TableCell style={{ fontWeight: "bold" }}>Task</TableCell>
             <TableCell style={{ fontWeight: "bold" }}>Status</TableCell>
             <TableCell style={{ fontWeight: "bold" }}>Assign To</TableCell>
-            <TableCell style={{ fontWeight: "bold" }}>Created By</TableCell>
             <TableCell style={{ fontWeight: "bold" }}>Created At</TableCell>
             <TableCell style={{ fontWeight: "bold" }}>Time Start</TableCell>
             <TableCell style={{ fontWeight: "bold" }}>Time End</TableCell>
@@ -148,13 +221,15 @@ const TaskTab = () => {
         </TableHead>
         <TableBody>
           {displayedTasks.map((task) => (
-            <TableRow key={task.id}>
-              <TableCell>
-                <Checkbox
-                  checked={selectedTasks.includes(task.id)}
-                  onChange={() => handleToggleSelect(task.id)}
-                />
-              </TableCell>
+            <TableRow key={task.task_id}>
+              {isLeader && (
+                <TableCell>
+                  <Checkbox
+                    checked={selectedTasks.includes(task.task_id)}
+                    onChange={() => handleToggleSelect(task.task_id)}
+                  />
+                </TableCell>
+              )}
               <TableCell>
                 <a
                   href="#"
@@ -162,16 +237,22 @@ const TaskTab = () => {
                     e.preventDefault();
                     handleOpenDialog(task);
                   }}
+                  style={{ textDecoration: 'none', color: '#1976d2' }}
                 >
-                  {task.task}
+                  {task.group_task_name}
                 </a>
               </TableCell>
               <TableCell>{task.status}</TableCell>
-              <TableCell>{task.assignTo}</TableCell>
-              <TableCell>{task.createdBy}</TableCell>
-              <TableCell>{task.createdAt}</TableCell>
-              <TableCell>{task.timeStart}</TableCell>
-              <TableCell>{task.timeEnd}</TableCell>
+              <TableCell>{task.user_name}</TableCell>
+              <TableCell>
+                {new Date(task.creation_date).toLocaleDateString()} {task.creation_time?.substring(0, 5)}
+              </TableCell>
+              <TableCell>
+                {new Date(task.date_begin).toLocaleDateString()} {task.time_begin?.substring(0, 5)}
+              </TableCell>
+              <TableCell>
+                {new Date(task.date_end).toLocaleDateString()} {task.time_end?.substring(0, 5)}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -190,30 +271,44 @@ const TaskTab = () => {
       <Dialog open={openDialog} onClose={handleCloseDialog}>
         <DialogTitle>Task Details</DialogTitle>
         <DialogContent>
-          {selectedTask ? (
+          {selectedTask && (
             <>
-              <Typography variant="h6">{selectedTask.task}</Typography>
+              <Typography variant="h6">{selectedTask.group_task_name}</Typography>
               <Typography>Status: {selectedTask.status}</Typography>
-              <Typography>Assign To: {selectedTask.assignTo}</Typography>
-              <Typography>Created By: {selectedTask.createdBy}</Typography>
-              <Typography>Created At: {selectedTask.createdAt}</Typography>
-              <Typography>Time Start: {selectedTask.timeStart}</Typography>
-              <Typography>Time End: {selectedTask.timeEnd}</Typography>
-              <Typography>Description: {selectedTask.description}</Typography>
+              <Typography>Assign To: {selectedTask.user_name}</Typography>
+              <Typography>Created At: {new Date(selectedTask.creation_date).toLocaleDateString()} {selectedTask.creation_time?.substring(0, 5)}</Typography>
+              <Typography>Time Start: {new Date(selectedTask.date_begin).toLocaleDateString()} {selectedTask.time_begin?.substring(0, 5)}</Typography>
+              <Typography>Time End: {new Date(selectedTask.date_end).toLocaleDateString()} {selectedTask.time_end?.substring(0, 5)}</Typography>
+              <Typography>Description: {selectedTask.task_description}</Typography>
             </>
-          ) : (
-            <Typography>No Task Selected</Typography>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog} variant="contained" color="secondary">
+          {isLeader && (
+            <Button 
+              onClick={() => {
+                handleCloseDialog();
+                setEditTask(selectedTask);
+                setOpenGroupSubmit(true);
+              }} 
+              color="primary"
+            >
+              Edit
+            </Button>
+          )}
+          <Button onClick={handleCloseDialog} color="primary">
             Close
           </Button>
         </DialogActions>
       </Dialog>
 
       <Dialog open={openGroupSubmit} onClose={handleCloseGroupSubmit} maxWidth="sm" fullWidth>
-        <GroupSubmit onSubmit={handleSubmitNewTask} onClose={handleCloseGroupSubmit} />
+        <GroupSubmit 
+          onSubmit={editTask ? handleEditTask : handleSubmitNewTask} 
+          onClose={handleCloseGroupSubmit}
+          groupId={groupId}
+          editData={editTask}
+        />
       </Dialog>
     </TableContainer>
   );

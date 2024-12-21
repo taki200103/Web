@@ -1,27 +1,67 @@
-import React, { useState } from 'react';
-import { Box, IconButton, Menu, MenuItem, Dialog } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Box, IconButton, Menu, MenuItem, Dialog, Typography, DialogTitle, DialogContent, DialogActions, TextField, Button } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import GroupMenu from '../group/GroupMenu';
 import UserProfile from '../user_info/user_menu';
 import { useNavigate } from 'react-router-dom';
+import CreateGroupDialog from './CreateGroupDialog';
+import axios from 'axios';
+import GroupAddIcon from '@mui/icons-material/GroupAdd';
+import DeleteIcon from '@mui/icons-material/Delete';
 
-// các ô group
+//
 
 const Component1 = ({ user }) => {
   const navigate = useNavigate();
-  const [groups, setGroups] = useState([1]);
+  const [groups, setGroups] = useState([]);
   const [contextMenu, setContextMenu] = useState(null);
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [openGroupMenu, setOpenGroupMenu] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [openCreateGroup, setOpenCreateGroup] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [openJoinDialog, setOpenJoinDialog] = useState(false);
+  const [groupIdToJoin, setGroupIdToJoin] = useState('');
+
+  useEffect(() => {
+    const fetchGroups = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        console.log('Token:', token);
+
+        const response = await axios.get(
+          'http://localhost:3000/api/groups/user-groups',
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }
+        );
+        console.log('API Response:', response.data);
+
+        if (response.data.success) {
+          setGroups(response.data.groups);
+          console.log('Groups after setting:', response.data.groups);
+        }
+      } catch (error) {
+        console.error('Error details:', error.response || error);
+      }
+    };
+
+    fetchGroups();
+  }, []);
+
+  useEffect(() => {
+    console.log('Current groups state:', groups);
+  }, [groups]);
 
   const handleAddGroup = () => {
-    setGroups((prev) => [...prev, prev.length + 1]);
+    setOpenCreateGroup(true);
   };
 
-  const handleContextMenu = (event, index) => {
+  const handleContextMenu = (event, group) => {
     event.preventDefault();
-    setSelectedIndex(index); // Lưu chỉ mục của ô được chọn
+    setSelectedGroup(group);
     setContextMenu({
       mouseX: event.clientX + 2,
       mouseY: event.clientY - 6,
@@ -39,7 +79,9 @@ const Component1 = ({ user }) => {
     handleClose();
   };
 
-  const handleGroupClick = () => {
+  const handleGroupClick = (group) => {
+    console.log('Selected group:', group); // Debug log
+    setSelectedGroup(group);
     setOpenGroupMenu(true);
   };
 
@@ -59,6 +101,72 @@ const Component1 = ({ user }) => {
 
   const handleOpenMainMenu = () => {
     setIsMenuOpen(true);
+  };
+
+  const handleGroupCreated = (newGroup) => {
+    setGroups(prev => [...prev, newGroup]);
+  };
+
+  const handleJoinGroup = async () => {
+    try {
+        if (!groupIdToJoin.trim()) {
+            alert('Vui lòng nhập Group ID!');
+            return;
+        }
+
+        const token = localStorage.getItem('authToken');
+        const response = await axios.post(
+            `http://localhost:3000/api/groups/${groupIdToJoin}/join`,
+            {},
+            {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            }
+        );
+
+        if (response.data.success) {
+            alert(response.data.message);
+            setOpenJoinDialog(false);
+            setGroupIdToJoin('');
+        } else {
+            alert(response.data.message || 'Có lỗi xảy ra!');
+        }
+    } catch (error) {
+        console.error('Join group error:', error);
+        alert(error.response?.data?.message || 'Có lỗi xảy ra khi tham gia nhóm!');
+    }
+  };
+
+  const handleDeleteGroup = async (group) => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await axios.delete(
+            `http://localhost:3000/api/groups/${group.group_id}`,
+            {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            }
+        );
+
+        if (response.data.success) {
+            setGroups(prev => prev.filter(g => g.group_id !== group.group_id));
+            handleClose();
+            alert('Xóa nhóm thành công!');
+        }
+    } catch (error) {
+        console.error('Delete group error:', error);
+        if (error.response?.status === 403) {
+            alert('Bạn không có quyền xóa nhóm này!');
+        } else if (error.response?.status === 404) {
+            alert('Không tìm thấy nhóm để xóa!');
+        } else if (error.response?.status === 401) {
+            alert('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!');
+        } else {
+            alert('Có lỗi xảy ra khi xóa nhóm. Vui lòng thử lại sau!');
+        }
+    }
   };
 
   return (
@@ -95,12 +203,15 @@ const Component1 = ({ user }) => {
           display: 'flex',
           justifyContent: 'flex-start', // Căn trái các phần tử
           width: '100%',
-          gap: 1, // Khoảng cách 8px giữa các phần tử
+          gap: 1, // Khoảng cách 8px giữa các phần t
           mb: 2,
         }}
       >
         <IconButton onClick={handleAddGroup} color="primary">
           <AddIcon />
+        </IconButton>
+        <IconButton onClick={() => setOpenJoinDialog(true)} color="primary">
+          <GroupAddIcon />
         </IconButton>
       </Box>
 
@@ -108,43 +219,62 @@ const Component1 = ({ user }) => {
       <Box
         sx={{
           width: '100%',
-          bgcolor: '#e0e0e0', // Màu nền xám đậm hơn
+          bgcolor: '#e0e0e0',
           p: 1,
           display: 'flex',
           flexDirection: 'column',
           gap: 2,
-          overflowY: 'auto', // Cho phép cuộn dọc khi nội dung dài
-          maxHeight: 'calc(100vh - 150px)', // Chiều cao tối đa
-          '&::-webkit-scrollbar': {
-            width: '8px', // Độ rộng của thanh cuộn
-          },
+          overflowY: 'auto',
+          maxHeight: 'calc(100vh - 150px)',
+          '&::-webkit-scrollbar': { width: '8px' },
           '&::-webkit-scrollbar-thumb': {
-            backgroundColor: '#888', // Màu của thanh cuộn
-            borderRadius: '4px', // Bo góc thanh cuộn
-          },
-          '&::-webkit-scrollbar-thumb:hover': {
-            backgroundColor: '#555', // Màu khi hover thanh cuộn
-          },
+            backgroundColor: '#888',
+            borderRadius: '4px'
+          }
         }}
       >
-        {groups.map((item, index) => (
-          <Box
-            key={item}
-            onClick={handleGroupClick}
-            onContextMenu={(e) => handleContextMenu(e, index)}
-            sx={{
-              width: '100%',
-              height: 65,
-              bgcolor: '#ddd', // Màu nền của từng ô group
-              borderRadius: 1,
-              flexShrink: 0, // Không cho phép co lại
-              cursor: 'pointer', // Con trỏ chuột kiểu pointer
-              '&:hover': {
-                bgcolor: '#ccc',
-              },
+        {groups.length === 0 ? (
+          <Typography 
+            variant="body2" 
+            sx={{ 
+              textAlign: 'center', 
+              color: 'text.secondary',
+              py: 2 
             }}
-          ></Box>
-        ))}
+          >
+            Chưa có nhóm nào
+          </Typography>
+        ) : (
+          groups.map((group) => (
+            <Box
+              key={group.group_id}
+              onClick={() => handleGroupClick(group)}
+              onContextMenu={(e) => handleContextMenu(e, group)}
+              sx={{
+                width: '100%',
+                minHeight: 65,
+                bgcolor: '#fff',
+                borderRadius: 1,
+                p: 2,
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                '&:hover': {
+                  bgcolor: '#f5f5f5',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                }
+              }}
+            >
+              <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                {group.group_name}
+              </Typography>
+              <Typography variant="caption" color="textSecondary">
+                {group.role === 'leader' ? 'Trưởng nhóm' : 'Thành viên'}
+              </Typography>
+            </Box>
+          ))
+        )}
       </Box>
 
       {/* Dialog hiển thị GroupMenu */}
@@ -161,7 +291,7 @@ const Component1 = ({ user }) => {
           }
         }}
       >
-        <GroupMenu />
+        <GroupMenu group={selectedGroup} onClose={handleCloseGroupMenu} />
       </Dialog>
 
       {/* Menu ngữ cảnh với vị trí dựa trên tọa độ chuột */}
@@ -175,7 +305,14 @@ const Component1 = ({ user }) => {
             : undefined
         }
       >
-        <MenuItem onClick={handleRemoveGroup}>Xóa</MenuItem>
+        {selectedGroup && selectedGroup.role === 'leader' && (
+            <MenuItem 
+                onClick={() => handleDeleteGroup(selectedGroup)}
+            >
+                <DeleteIcon sx={{ mr: 1 }} />
+                Xóa nhóm
+            </MenuItem>
+        )}
       </Menu>
 
       <UserProfile 
@@ -185,6 +322,49 @@ const Component1 = ({ user }) => {
         openMainMenu={handleOpenMainMenu}
         user={user}
       />
+
+      <CreateGroupDialog
+        open={openCreateGroup}
+        onClose={() => setOpenCreateGroup(false)}
+        onSuccess={handleGroupCreated}
+      />
+
+      <Dialog open={openJoinDialog} onClose={() => setOpenJoinDialog(false)}>
+        <DialogTitle>Tham gia nhóm</DialogTitle>
+        <DialogContent>
+            <TextField
+                autoFocus
+                margin="dense"
+                label="Nhập Group ID"
+                fullWidth
+                value={groupIdToJoin}
+                onChange={(e) => setGroupIdToJoin(e.target.value)}
+                sx={{
+                    '& .MuiInputLabel-root': {
+                        color: '#000000',  // Màu đen cho label
+                        fontWeight: 400    // Giảm độ đậm của chữ (normal weight)
+                    },
+                    '& .MuiOutlinedInput-root': {
+                        '& fieldset': {
+                            borderColor: '#1976d2'  // Màu xanh cho border
+                        },
+                        '&:hover fieldset': {
+                            borderColor: '#1976d2'  // Màu xanh khi hover
+                        }
+                    }
+                }}
+            />
+        </DialogContent>
+        <DialogActions>
+            <Button onClick={() => setOpenJoinDialog(false)}>Hủy</Button>
+            <Button 
+                onClick={handleJoinGroup}
+                disabled={groupIdToJoin.trim() === ''}
+            >
+                Gửi yêu cầu
+            </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
