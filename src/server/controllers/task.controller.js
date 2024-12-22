@@ -1,5 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const pool = require('../config/db.config');
+const searchTasks = require('../utils/searchTasks');
 
 const TaskController = {
     createTask: async (req, res) => {
@@ -250,6 +251,27 @@ const TaskController = {
         console.log('Task Type ID:', taskTypeId); // Log taskTypeId
         const item = items.find(item => item.id === taskTypeId);
         return item ? item.name : 'Unknown';
+    },
+
+    searchTasks: async (req, res) => {
+        try {
+            const { searchTerm } = req.query;
+            const user_id = req.user.user_id;
+
+            const tasks = await searchTasks(user_id, searchTerm);
+
+            res.status(200).json({
+                success: true,
+                tasks,
+            });
+        } catch (error) {
+            console.error('Search tasks error:', error);
+            res.status(500).json({
+                success: false,
+                message: "Lỗi khi tìm kiếm công việc!",
+                error: error.message,
+            });
+        }
     }
 };
 

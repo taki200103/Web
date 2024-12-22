@@ -32,18 +32,18 @@ const GroupController = {
                 description
             ]);
 
-            // Thêm leader vào nhóm
+            // Thêm leader vào nhóm với request = 'accepted'
             const addLeaderQuery = `
-                INSERT INTO "Group_Member" (user_id, group_id, role)
-                VALUES ($1, $2, 'leader')
+                INSERT INTO "Group_Member" (user_id, group_id, role, request)
+                VALUES ($1, $2, 'leader', 'accepted')
             `;
             await pool.query(addLeaderQuery, [leader_id, group_id]);
 
-            // Thêm các thành viên vào nhóm
+            // Thêm các thành viên vào nhóm với request = 'accepted'
             if (members && members.length > 0) {
                 const addMembersQuery = `
-                    INSERT INTO "Group_Member" (user_id, group_id, role)
-                    VALUES ($1, $2, 'member')
+                    INSERT INTO "Group_Member" (user_id, group_id, role, request)
+                    VALUES ($1, $2, 'member', 'accepted')
                 `;
                 for (const member_id of members) {
                     // Kiểm tra user tồn tại
@@ -120,6 +120,7 @@ const GroupController = {
                     JOIN "Users" u ON gm.user_id = u.user_id
                     WHERE gm.group_id = $1 
                     AND gm.role = 'leader'
+                    AND gm.request = 'accepted'
                 )
                 SELECT 
                     g.group_id,
@@ -132,6 +133,7 @@ const GroupController = {
                         SELECT CAST(COUNT(*) AS INTEGER)
                         FROM "Group_Member" 
                         WHERE group_id = $1
+                        AND request = 'accepted'
                     ) as total_members
                 FROM "Group" g
                 CROSS JOIN leader_info l
@@ -146,9 +148,6 @@ const GroupController = {
                     message: "Không tìm thấy thông tin nhóm!"
                 });
             }
-
-            // Log để debug
-            console.log('Group details:', result.rows[0]);
 
             res.status(200).json({
                 success: true,
@@ -179,7 +178,7 @@ const GroupController = {
             const roleResult = await pool.query(checkRoleQuery, [groupId, user_id]);
             const isLeader = roleResult.rows[0]?.role === 'leader';
 
-            // Lấy danh sách thành viên
+            // Lấy danh sách thành viên chỉ những người đã được chấp nhận
             const query = `
                 SELECT 
                     u.user_id,
@@ -189,8 +188,12 @@ const GroupController = {
                     gm.time_join
                 FROM "Group_Member" gm
                 JOIN "Users" u ON gm.user_id = u.user_id
-                WHERE gm.group_id = $1
-                ORDER BY gm.date_join DESC, gm.time_join DESC
+                WHERE gm.group_id = $1 
+                AND gm.request = 'accepted'
+                ORDER BY 
+                    CASE WHEN gm.role = 'leader' THEN 0 ELSE 1 END,
+                    gm.date_join DESC, 
+                    gm.time_join DESC
             `;
 
             const result = await pool.query(query, [groupId]);
@@ -243,10 +246,24 @@ const GroupController = {
                 });
             }
 
-            // Thêm thành viên mới
+            // Kiểm tra user đã trong nhóm chưa
+            const checkMemberQuery = `
+                SELECT * FROM "Group_Member" 
+                WHERE group_id = $1 AND user_id = $2
+            `;
+            const memberExists = await pool.query(checkMemberQuery, [groupId, userId]);
+
+            if (memberExists.rows.length > 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Thành viên đã ở trong nhóm!"
+                });
+            }
+
+            // Thêm thành viên mới với trạng thái accepted
             const addMemberQuery = `
-                INSERT INTO "Group_Member" (user_id, group_id, role)
-                VALUES ($1, $2, 'member')
+                INSERT INTO "Group_Member" (user_id, group_id, role, request)
+                VALUES ($1, $2, 'member', 'accepted')
                 RETURNING *
             `;
             await pool.query(addMemberQuery, [userId, groupId]);
@@ -271,8 +288,6 @@ const GroupController = {
             const { groupId, memberId } = req.params;
             const leader_id = req.user.user_id;
 
-            console.log('Delete request:', { groupId, memberId, leader_id });
-
             // Bắt đầu transaction
             await pool.query('BEGIN');
 
@@ -283,7 +298,6 @@ const GroupController = {
                     WHERE group_id = $1 AND user_id = $2
                 `;
                 const leaderResult = await pool.query(checkLeaderQuery, [groupId, leader_id]);
-                console.log('Leader check result:', leaderResult.rows);
 
                 if (leaderResult.rows.length === 0 || leaderResult.rows[0].role !== 'leader') {
                     await pool.query('ROLLBACK');
@@ -299,7 +313,6 @@ const GroupController = {
                     WHERE group_id = $1 AND user_id = $2
                 `;
                 const memberResult = await pool.query(checkMemberQuery, [groupId, memberId]);
-                console.log('Member check result:', memberResult.rows);
 
                 if (memberResult.rows.length === 0) {
                     await pool.query('ROLLBACK');
@@ -318,43 +331,43 @@ const GroupController = {
                     });
                 }
 
-                // Xóa thành viên từ Group_Member
+                // Kiểm tra các task của thành viên trước khi xóa
+                const checkTasksQuery = `
+                    SELECT task_id FROM "Group_Task"
+                    WHERE group_id = $1 AND user_id = $2
+                `;
+                const tasksResult = await pool.query(checkTasksQuery, [groupId, memberId]);
+                console.log('Tasks to delete:', tasksResult.rows);
+
+                // 1. Xóa tất cả task của thành viên trong nhóm
+                const deleteTasksQuery = `
+                    DELETE FROM "Group_Task"
+                    WHERE group_id = $1 AND user_id = $2
+                    RETURNING *
+                `;
+                const deletedTasks = await pool.query(deleteTasksQuery, [groupId, memberId]);
+                console.log('Deleted tasks:', deletedTasks.rows);
+
+                // 2. Xóa thành viên khỏi nhóm
                 const deleteMemberQuery = `
                     DELETE FROM "Group_Member"
                     WHERE group_id = $1 AND user_id = $2
+                    RETURNING *
                 `;
-                await pool.query(deleteMemberQuery, [groupId, memberId]);
+                const deletedMember = await pool.query(deleteMemberQuery, [groupId, memberId]);
+                console.log('Deleted member:', deletedMember.rows);
 
-                // Kiểm tra xem còn thành viên nào trong nhóm không
-                const countMembersQuery = `
-                    SELECT COUNT(*) as member_count
-                    FROM "Group_Member"
-                    WHERE group_id = $1
-                `;
-                const countResult = await pool.query(countMembersQuery, [groupId]);
-                const memberCount = parseInt(countResult.rows[0].member_count);
-
-                // Nếu không còn thành viên nào, xóa luôn nhóm
-                if (memberCount === 0) {
-                    const deleteGroupQuery = `
-                        DELETE FROM "Group"
-                        WHERE group_id = $1
-                    `;
-                    await pool.query(deleteGroupQuery, [groupId]);
-                }
-
-                // Commit transaction
                 await pool.query('COMMIT');
 
                 res.status(200).json({
                     success: true,
-                    message: memberCount === 0 
-                        ? "Đã xóa thành viên và giải tán nhóm!"
-                        : "Xóa thành viên thành công!"
+                    message: "Xóa thành viên và các công việc của thành viên thành công!",
+                    deletedTasks: deletedTasks.rows.length,
+                    deletedMember: deletedMember.rows[0]
                 });
 
             } catch (error) {
-                // Rollback nếu có lỗi
+                console.error('Transaction error:', error);
                 await pool.query('ROLLBACK');
                 throw error;
             }
@@ -805,6 +818,75 @@ const GroupController = {
             res.status(500).json({
                 success: false,
                 message: "Lỗi khi xử lý yêu cầu!",
+                error: error.message
+            });
+        }
+    },
+
+    deleteGroup: async (req, res) => {
+        try {
+            const { groupId } = req.params;
+            const leader_id = req.user.user_id;
+
+            // Bắt đầu transaction
+            await pool.query('BEGIN');
+
+            try {
+                // Kiểm tra quyền leader
+                const checkLeaderQuery = `
+                    SELECT * FROM "Group_Member"
+                    WHERE group_id = $1 AND user_id = $2 AND role = 'leader'
+                `;
+                const leaderResult = await pool.query(checkLeaderQuery, [groupId, leader_id]);
+                
+                if (leaderResult.rows.length === 0) {
+                    await pool.query('ROLLBACK');
+                    return res.status(403).json({
+                        success: false,
+                        message: "Chỉ leader mới có quyền xóa nhóm!"
+                    });
+                }
+
+                // Xóa theo thứ tự
+                // 1. Xóa Group_Task
+                await pool.query('DELETE FROM "Group_Task" WHERE group_id = $1', [groupId]);
+                
+                // 2. Xóa Group_Member
+                await pool.query('DELETE FROM "Group_Member" WHERE group_id = $1', [groupId]);
+                
+                // 3. Cuối cùng xóa Group
+                const deleteGroupQuery = `
+                    DELETE FROM "Group"
+                    WHERE group_id = $1
+                    RETURNING *
+                `;
+                const result = await pool.query(deleteGroupQuery, [groupId]);
+
+                if (result.rows.length === 0) {
+                    await pool.query('ROLLBACK');
+                    return res.status(404).json({
+                        success: false,
+                        message: "Không tìm thấy nhóm!"
+                    });
+                }
+
+                await pool.query('COMMIT');
+
+                res.status(200).json({
+                    success: true,
+                    message: "Xóa nhóm thành công!"
+                });
+
+            } catch (error) {
+                await pool.query('ROLLBACK');
+                throw error;
+            }
+
+        } catch (error) {
+            console.error('Delete group error:', error);
+            res.status(500).json({
+                success: false,
+                message: "Lỗi khi xóa nhóm!",
                 error: error.message
             });
         }

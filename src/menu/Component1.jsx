@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import CreateGroupDialog from './CreateGroupDialog';
 import axios from 'axios';
 import GroupAddIcon from '@mui/icons-material/GroupAdd';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 //
 
@@ -58,9 +59,9 @@ const Component1 = ({ user }) => {
     setOpenCreateGroup(true);
   };
 
-  const handleContextMenu = (event, index) => {
+  const handleContextMenu = (event, group) => {
     event.preventDefault();
-    setSelectedIndex(index); // Lưu chỉ mục của ô được chọn
+    setSelectedGroup(group);
     setContextMenu({
       mouseX: event.clientX + 2,
       mouseY: event.clientY - 6,
@@ -134,6 +135,37 @@ const Component1 = ({ user }) => {
     } catch (error) {
         console.error('Join group error:', error);
         alert(error.response?.data?.message || 'Có lỗi xảy ra khi tham gia nhóm!');
+    }
+  };
+
+  const handleDeleteGroup = async (group) => {
+    try {
+        const token = localStorage.getItem('authToken');
+        const response = await axios.delete(
+            `http://localhost:3000/api/groups/${group.group_id}`,
+            {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            }
+        );
+
+        if (response.data.success) {
+            setGroups(prev => prev.filter(g => g.group_id !== group.group_id));
+            handleClose();
+            alert('Xóa nhóm thành công!');
+        }
+    } catch (error) {
+        console.error('Delete group error:', error);
+        if (error.response?.status === 403) {
+            alert('Bạn không có quyền xóa nhóm này!');
+        } else if (error.response?.status === 404) {
+            alert('Không tìm thấy nhóm để xóa!');
+        } else if (error.response?.status === 401) {
+            alert('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!');
+        } else {
+            alert('Có lỗi xảy ra khi xóa nhóm. Vui lòng thử lại sau!');
+        }
     }
   };
 
@@ -273,7 +305,14 @@ const Component1 = ({ user }) => {
             : undefined
         }
       >
-        <MenuItem onClick={handleRemoveGroup}>Xóa</MenuItem>
+        {selectedGroup && selectedGroup.role === 'leader' && (
+            <MenuItem 
+                onClick={() => handleDeleteGroup(selectedGroup)}
+            >
+                <DeleteIcon sx={{ mr: 1 }} />
+                Xóa nhóm
+            </MenuItem>
+        )}
       </Menu>
 
       <UserProfile 

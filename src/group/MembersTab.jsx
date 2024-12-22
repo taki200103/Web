@@ -18,6 +18,7 @@ import {
   CircularProgress,
   Tabs,
   Tab,
+  Divider,
 } from "@mui/material";
 import axios from 'axios';
 
@@ -37,8 +38,6 @@ const MembersTab = ({ groupId }) => {
 
     try {
       const token = localStorage.getItem('authToken');
-      console.log('Fetching members for group:', groupId);
-      
       const response = await axios.get(
         `http://localhost:3000/api/groups/${groupId}/members`,
         {
@@ -48,7 +47,6 @@ const MembersTab = ({ groupId }) => {
         }
       );
 
-      console.log('Members response:', response.data);
       setMembers(response.data.members);
       setIsLeader(response.data.isLeader);
       setLoading(false);
@@ -58,28 +56,30 @@ const MembersTab = ({ groupId }) => {
     }
   };
 
+  const fetchRequests = async () => {
+    if (!isLeader) return;
+    
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await axios.get(
+        `http://localhost:3000/api/groups/${groupId}/requests`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+      setRequests(response.data.requests || []);
+    } catch (error) {
+      console.error('Error fetching requests:', error);
+    }
+  };
+
   useEffect(() => {
     fetchMembers();
   }, [groupId]);
 
   useEffect(() => {
-    const fetchRequests = async () => {
-      try {
-        const token = localStorage.getItem('authToken');
-        const response = await axios.get(
-          `http://localhost:3000/api/groups/${groupId}/requests`,
-          {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          }
-        );
-        setRequests(response.data.requests);
-      } catch (error) {
-        console.error('Error fetching requests:', error);
-      }
-    };
-
     if (isLeader) {
       fetchRequests();
     }
@@ -109,20 +109,10 @@ const MembersTab = ({ groupId }) => {
         }
       );
 
-      // Refresh member list
-      const response = await axios.get(
-        `http://localhost:3000/api/groups/${groupId}/members`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-      setMembers(response.data.members);
+      await fetchMembers();
       handleCloseDialog();
       alert('Thêm thành viên thành công!');
     } catch (error) {
-      console.error('Error adding member:', error);
       alert(error.response?.data?.message || 'Có lỗi xảy ra khi thêm thành viên!');
     }
   };
@@ -139,8 +129,6 @@ const MembersTab = ({ groupId }) => {
   const handleConfirmDelete = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      console.log('Deleting member:', selectedMember); // Debug log
-
       await axios.delete(
         `http://localhost:3000/api/groups/${groupId}/members/${selectedMember.user_id}`,
         {
@@ -150,22 +138,11 @@ const MembersTab = ({ groupId }) => {
         }
       );
 
-      // Refresh member list
-      const response = await axios.get(
-        `http://localhost:3000/api/groups/${groupId}/members`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-
-      setMembers(response.data.members);
+      await fetchMembers();
       setConfirmDelete(false);
       setSelectedMember(null);
       alert('Xóa thành viên thành công!');
     } catch (error) {
-      console.error('Error deleting member:', error);
       alert(error.response?.data?.message || 'Có lỗi xảy ra khi xóa thành viên!');
     }
   };
@@ -183,14 +160,12 @@ const MembersTab = ({ groupId }) => {
         }
       );
 
-      // Cập nhật UI
-      setRequests(prev => prev.filter(req => req.user_id !== userId));
       if (action === 'accept') {
-        // Thêm thành viên mới vào danh sách
         await fetchMembers();
       }
+      await fetchRequests();
+      
     } catch (error) {
-      console.error('Error handling request:', error);
       alert(error.response?.data?.message || 'Có lỗi xảy ra!');
     }
   };
@@ -208,57 +183,54 @@ const MembersTab = ({ groupId }) => {
   }
 
   return (
-    <Box p={4}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h5">
-          Members
-        </Typography>
-        {isLeader && (
-          <Button 
-            variant="contained" 
-            color="primary" 
-            onClick={handleOpenDialog}
-          >
-            Add Member
-          </Button>
-        )}
+    <Box p={3}>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+        <Tabs value={activeTab} onChange={handleChangeTab}>
+          <Tab label="Thành viên" />
+          {isLeader && <Tab label={`Yêu cầu tham gia (${requests.length})`} />}
+        </Tabs>
       </Box>
 
-      <Tabs value={activeTab} onChange={handleChangeTab}>
-        <Tab label="Members" />
-        {isLeader && <Tab label="Requests" />}
-      </Tabs>
-
       {activeTab === 0 && (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>User ID</TableCell>
-                <TableCell>Name</TableCell>
-                <TableCell>Role</TableCell>
-                <TableCell>Joined At</TableCell>
-                {isLeader && <TableCell align="center">Actions</TableCell>}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {members.length === 0 ? (
+        <>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+            <Typography variant="h6">
+              Danh sách thành viên
+            </Typography>
+            {isLeader && (
+              <Button 
+                variant="contained" 
+                onClick={handleOpenDialog}
+              >
+                Thêm thành viên
+              </Button>
+            )}
+          </Box>
+
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
                 <TableRow>
-                  <TableCell colSpan={isLeader ? 5 : 4} align="center">
-                    Chưa có thành viên nào
-                  </TableCell>
+                  <TableCell>User ID</TableCell>
+                  <TableCell>Tên thành viên</TableCell>
+                  <TableCell>Vai trò</TableCell>
+                  <TableCell>Ngày tham gia</TableCell>
+                  {isLeader && <TableCell align="right">Thao tác</TableCell>}
                 </TableRow>
-              ) : (
-                members.map((member) => (
+              </TableHead>
+              <TableBody>
+                {members.map((member) => (
                   <TableRow key={member.user_id}>
                     <TableCell>{member.user_id}</TableCell>
                     <TableCell>{member.user_name}</TableCell>
-                    <TableCell>{member.role}</TableCell>
                     <TableCell>
-                      {new Date(member.date_join).toLocaleDateString('vi-VN')} {member.time_join?.substring(0, 5)}
+                      {member.role === 'leader' ? 'Trưởng nhóm' : 'Thành viên'}
+                    </TableCell>
+                    <TableCell>
+                      {new Date(member.date_join).toLocaleDateString('vi-VN')}
                     </TableCell>
                     {isLeader && (
-                      <TableCell align="center">
+                      <TableCell align="right">
                         {member.role !== 'leader' && (
                           <Button
                             variant="outlined"
@@ -266,76 +238,100 @@ const MembersTab = ({ groupId }) => {
                             size="small"
                             onClick={() => handleDeleteClick(member)}
                           >
-                            Delete
+                            Xóa
                           </Button>
                         )}
                       </TableCell>
                     )}
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                ))}
+                {members.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={isLeader ? 5 : 4} align="center">
+                      Chưa có thành viên nào
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </>
       )}
 
       {activeTab === 1 && isLeader && (
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Tên</TableCell>
-                <TableCell>Ngày yêu cầu</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {requests.map((request) => (
-                <TableRow key={request.user_id}>
-                  <TableCell>{request.user_name}</TableCell>
-                  <TableCell>
-                    {new Date(request.date_join).toLocaleDateString()} {request.time_join?.substring(0, 5)}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      onClick={() => handleRequest(request.user_id, 'accept')}
-                      sx={{ mr: 1 }}
-                    >
-                      Chấp nhận
-                    </Button>
-                    <Button
-                      variant="contained"
-                      color="error"
-                      onClick={() => handleRequest(request.user_id, 'reject')}
-                    >
-                      Từ chối
-                    </Button>
-                  </TableCell>
+        <>
+          <Typography variant="h6" mb={2}>
+            Danh sách yêu cầu tham gia
+          </Typography>
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>User ID</TableCell>
+                  <TableCell>Tên</TableCell>
+                  <TableCell>Ngày yêu cầu</TableCell>
+                  <TableCell align="right">Thao tác</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableHead>
+              <TableBody>
+                {requests.map((request) => (
+                  <TableRow key={request.user_id}>
+                    <TableCell>{request.user_id}</TableCell>
+                    <TableCell>{request.user_name}</TableCell>
+                    <TableCell>
+                      {new Date(request.date_join).toLocaleDateString('vi-VN')}
+                    </TableCell>
+                    <TableCell align="right">
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        size="small"
+                        onClick={() => handleRequest(request.user_id, 'accept')}
+                        sx={{ mr: 1 }}
+                      >
+                        Chấp nhận
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        size="small"
+                        onClick={() => handleRequest(request.user_id, 'reject')}
+                      >
+                        Từ chối
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {requests.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center">
+                      Không có yêu cầu tham gia nào
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </>
       )}
 
       <Dialog open={openDialog} onClose={handleCloseDialog}>
-        <DialogTitle>Add New Member</DialogTitle>
+        <DialogTitle>Thêm thành viên mới</DialogTitle>
         <DialogContent>
           <TextField
+            autoFocus
+            margin="dense"
             label="User ID"
             fullWidth
             value={newMemberId}
             onChange={(e) => setNewMemberId(e.target.value)}
-            sx={{ mt: 2 }}
             placeholder="Nhập User ID của thành viên"
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button variant="contained" color="primary" onClick={handleAddMember}>
-            Add
+          <Button onClick={handleCloseDialog}>Hủy</Button>
+          <Button variant="contained" onClick={handleAddMember}>
+            Thêm
           </Button>
         </DialogActions>
       </Dialog>
