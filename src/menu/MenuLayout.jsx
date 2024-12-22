@@ -2,19 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Avatar, 
-  IconButton
+  IconButton 
 } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
 import { useNavigate } from 'react-router-dom';
 import Component1 from './Component1';
 import Component2 from './Component2';
 import Component3 from './Component3';
 import Component4 from './Component4';
 import UserProfile from '../user_info/user_menu';
+import AIChatDialog from './AIChatDialog'; // Đường dẫn tới AIChatDialog
 
 const MenuLayout = ({ onLogout }) => {
   const navigate = useNavigate();
   const [openUserMenu, setOpenUserMenu] = useState(false);
+  const [openChat, setOpenChat] = useState(false); // Trạng thái điều khiển AIChatDialog
   const [user, setUser] = useState(null);
 
   useEffect(() => {
@@ -106,6 +109,20 @@ const MenuLayout = ({ onLogout }) => {
         </IconButton>
 
         <IconButton
+          onClick={() => setOpenChat(true)} // Kích hoạt AIChatDialog
+          sx={{
+            width: 60,
+            height: 60,
+            bgcolor: 'transparent',
+            '&:hover': {
+              bgcolor: 'rgba(0, 0, 0, 0.1)',
+            },
+          }}
+        >
+          <SmartToyIcon sx={{ fontSize: 30 }} />
+        </IconButton>
+
+        <IconButton
           onClick={() => setOpenUserMenu(true)}
           sx={{
             p: 0,
@@ -127,6 +144,12 @@ const MenuLayout = ({ onLogout }) => {
         onClose={() => setOpenUserMenu(false)}
         onLogout={handleLogout}
         user={user}
+      />
+
+      {/* Hộp thoại AI */}
+      <AIChatDialog
+        open={openChat}
+        onClose={() => setOpenChat(false)} // Đóng AIChatDialog
       />
     </Box>
   );

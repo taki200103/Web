@@ -1,0 +1,11 @@
+SELECT *
+FROM public."User_Task"
+WHERE user_id = 'cf9bc054';
+
+
+SELECT *
+FROM public."User_Task"
+JOIN public."User" ON public."User_Task".user_id = public."User".user_id
+WHERE public."User_Task".user_id = 'cf9bc054';
+
+
